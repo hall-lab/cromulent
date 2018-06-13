@@ -1,8 +1,10 @@
 from __future__ import division
 import dateutil.parser
-import math
+import math, os, sys
 from collections import namedtuple
 
+from googleapiclient import discovery
+from oauth2client.client import GoogleCredentials
 
 class Disk(object):
 
@@ -145,3 +147,100 @@ class OperationCostCalculator(object):
 
     def resource_cost(self, resource):
         return resource.duration * self.price(resource) * resource.units
+
+# functions to gather the latest Google Cloud Platform Compute costs
+
+# loosely based on https://github.com/google/google-api-python-client/issues/484
+# and https://gist.github.com/indraniel/cc3c4d1c5f03ba05bcc7793c7d166338
+# and https://developers.google.com/resources/api-libraries/documentation/cloudbilling/v1/python/latest/cloudbilling_v1.services.skus.html
+# and https://cloud.google.com/billing/reference/rest/v1/services.skus/list
+def setup_cloudbilling_api_access():
+    if 'GCP_API_KEY' not in os.environ:
+        msg = ("Please supply the shell environment variable: 'GCP_API_KEY' "
+               "before running this script!\n"
+               "(e.g. 'export GCP_API_KEY=\"your api key\"')")
+        sys.exit(msg)
+    api_key = os.environ['GCP_API_KEY']
+    cloudbilling = discovery.build('cloudbilling', 'v1', developerKey=api_key)
+    return cloudbilling
+
+def get_service_id(billing_api, service_name):
+    response = billing_api.services().list().execute()
+    compute_service = filter(lambda(x): x['displayName'] == service_name, response['services'])
+    if not compute_service:
+        raise("Didn't find '{}' in billing API service list".format(service_name))
+    return compute_service[0]
+
+def machine_types():
+    compute_types = ('standard', 'highmem', 'highcpu')
+    compute_cores = (2, 4, 8, 16, 32, 64)
+
+    computes = {}
+    for t in compute_types:
+        for c in compute_cores:
+            formal_name = "{} Intel N1 {} VCPU running in Americas".format(t.capitalize(), c)
+            short_name = "n1-{}-{}".format(t, c)
+            computes[short_name] = formal_name
+
+    # add special cases
+    computes['n1-standard-1'] = "Standard Intel N1 1 VCPU running in Americas"
+    computes['f1-micro'] = "Micro instance with burstable CPU running in Americas"
+    computes['g1-small'] = "Small instance with 1 VCPU running in Americas"
+
+    return computes
+
+def get_compute_price(sku):
+    nano_price = sku['pricingInfo'][0]['pricingExpression']['tieredRates'][0]['unitPrice']['nanos']
+    price = nano_price * 1e-9
+    return price
+
+def get_skus_for_service(billing_api, service_info):
+    service_name = service_info["name"]
+    response = billing_api.services().skus().list(parent=service_name).execute()
+
+    # assemble the skus into a better format
+    service_skus = {}
+    while True:
+        for sku in response['skus']:
+            description = sku['description']
+            service_skus[description] = sku
+        if response['nextPageToken']:
+            response = billing_api.services().skus().list(parent=service_name, pageToken=response['nextPageToken']).execute()
+        else:
+            break
+
+    return service_skus
+
+def construct_pricelist(billing_api, service_info):
+    compute_skus = get_skus_for_service(billing_api, service_info)
+
+    # get the machine types we really care about (mostly standard compute in the USA)
+    machines = machine_types()
+
+    pricelist = {}
+    for i in machines:
+        short_name = i
+        formal_name = machines[short_name]
+        preemptible_name = "Preemptible {}".format(formal_name)
+        normal_sku = compute_skus[formal_name]
+        preemptible_sku = compute_skus[preemptible_name]
+
+        pricelist[short_name] = {
+            'description' : normal_sku["description"],
+            'normal' : {
+                'skuId' : normal_sku['skuId'],
+                'price' : get_compute_price(normal_sku),
+            },
+            'preemptible' : {
+                'skuId' : preemptible_sku['skuId'],
+                'price' : get_compute_price(preemptible_sku),
+            },
+        }
+
+    return pricelist
+
+def generate_gcp_compute_pricelist():
+    cloudbilling = setup_cloudbilling_api_access()
+    compute_service = get_service_id(cloudbilling, 'Compute Engine')
+    pricelist = construct_pricelist(cloudbilling, compute_service)
+    return pricelist

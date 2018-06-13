@@ -4,7 +4,7 @@ from pprint import pprint
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
 
-from gcloud import GenomicsOperation, OperationCostCalculator
+from gcloud import GenomicsOperation, OperationCostCalculator, generate_gcp_compute_pricelist
 from cromwell import Metadata
 from collections import defaultdict
 
@@ -12,7 +12,7 @@ import json
 import sys
 import math
 import argparse
-
+import datetime
 
 class CromwellCostCalculator(object):
 
@@ -58,16 +58,16 @@ class CromwellCostCalculator(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('pricelist', type=argparse.FileType('r'), help='pricelist.json from Google containing cost information')
     parser.add_argument('metadata', type=argparse.FileType('r'), help='metadata from a cromwell workflow from which to estimate cost')
     args = parser.parse_args()
     metadata = json.load(args.metadata)
-    pricelist = json.load(args.pricelist)
+    pricelist = generate_gcp_compute_pricelist()
+    print "The current price list as of: {}\n".format(datetime.datetime.now())
+    print json.dumps(pricelist, indent=4, sort_keys=True)
+
 
     calc = CromwellCostCalculator(pricelist)
     cost = calc.calculate_cost(metadata)
     print json.dumps(cost, sort_keys=True, indent=4)
     print 'Total: ${0}'.format(cost['total_cost'])
     print 'Per Shard: ${0}'.format(cost['cost_per_shard'])
-
-
