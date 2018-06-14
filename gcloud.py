@@ -154,6 +154,7 @@ class OperationCostCalculator(object):
 # and https://gist.github.com/indraniel/cc3c4d1c5f03ba05bcc7793c7d166338
 # and https://developers.google.com/resources/api-libraries/documentation/cloudbilling/v1/python/latest/cloudbilling_v1.services.skus.html
 # and https://cloud.google.com/billing/reference/rest/v1/services.skus/list
+# and https://cloud.google.com/compute/pricing#disk
 def setup_cloudbilling_api_access():
     if 'GCP_API_KEY' not in os.environ:
         msg = ("Please supply the shell environment variable: 'GCP_API_KEY' "
@@ -189,8 +190,27 @@ def machine_types():
 
     return computes
 
+def disk_types():
+    # I manually crafted this list based on comparing the API list and cromwell metadata
+    disks = {
+#        'CP-COMPUTEENGINE-LOCAL-SSD' : 'SSD backed Local Storage',
+#        'CP-COMPUTEENGINE-STORAGE-PD-SNAPSHOT' : 'Storage PD Snapshot',   # aka "Snapshot storage"
+        'CP-COMPUTEENGINE-STORAGE-PD-SSD' : 'SSD backed PD Capacity',     # aka SSD provisioned space
+        'CP-COMPUTEENGINE-STORAGE-PD-CAPACITY' : 'Storage PD Capacity',   # aka Standard provisioned space
+#        'CP-COMPUTEENGINE-LOCAL-SSD-PREMPTIBLE' : 'SSD backed Local Storage attached to Preemptible VMs'
+    }
+    # New Name: Storage Image -- not sure what old name this maps back onto????
+    return disks
+
 def get_compute_price(sku):
     nano_price = sku['pricingInfo'][0]['pricingExpression']['tieredRates'][0]['unitPrice']['nanos']
+    price = nano_price * 1e-9
+    return price
+
+def get_disk_price(sku):
+    rates = sku["pricingInfo"][0]["pricingExpression"]["tieredRates"]
+    rate_index = 1 if len(rates) > 1 else 0
+    nano_price = rates[rate_index]['unitPrice']['nanos']
     price = nano_price * 1e-9
     return price
 
@@ -211,25 +231,22 @@ def get_skus_for_service(billing_api, service_info):
 
     return service_skus
 
-def construct_pricelist(billing_api, service_info):
-    compute_skus = get_skus_for_service(billing_api, service_info)
-
+def construct_machine_pricelist(pricelist, compute_skus):
     # get the machine types we really care about (mostly standard compute in the USA)
     machines = machine_types()
 
-    pricelist = {}
     for i in machines:
         short_name = i
         formal_name = machines[short_name]
         preemptible_name = "Preemptible {}".format(formal_name)
-        normal_sku = compute_skus[formal_name]
+        standard_sku = compute_skus[formal_name]
         preemptible_sku = compute_skus[preemptible_name]
 
-        pricelist[short_name] = {
-            'description' : normal_sku["description"],
-            'normal' : {
-                'skuId' : normal_sku['skuId'],
-                'price' : get_compute_price(normal_sku),
+        pricelist['compute'][short_name] = {
+            'description' : standard_sku["description"],
+            'standard' : {
+                'skuId' : standard_sku['skuId'],
+                'price' : get_compute_price(standard_sku),
             },
             'preemptible' : {
                 'skuId' : preemptible_sku['skuId'],
@@ -239,8 +256,36 @@ def construct_pricelist(billing_api, service_info):
 
     return pricelist
 
+def construct_disk_pricelist(pricelist, compute_skus):
+    # get the disks we usually care about (mostly standard provisioned and SSD compute in the USA)
+    disks = disk_types()
+
+    for d in disks:
+        old_description = d
+        new_description = disks[d]
+
+        sku = compute_skus[new_description]
+
+        pricelist['disk'][old_description] = {
+            'description' : sku["description"],
+            'skuId' : sku["skuId"],
+            'price' : get_disk_price(sku)
+        }
+
+    return pricelist
+
+def construct_pricelist(billing_api, service_info):
+    compute_skus = get_skus_for_service(billing_api, service_info)
+
+    pricelist = { 'compute': {}, 'disk': {} }
+    pricelist = construct_machine_pricelist(pricelist, compute_skus)
+    pricelist = construct_disk_pricelist(pricelist, compute_skus)
+    return pricelist
+
 def generate_gcp_compute_pricelist():
     cloudbilling = setup_cloudbilling_api_access()
     compute_service = get_service_id(cloudbilling, 'Compute Engine')
     pricelist = construct_pricelist(cloudbilling, compute_service)
     return pricelist
+
+# cat pricing.json | jq '.["skus"] | .[] | { name, description, resource: .category.resourceFamily, serviceRegions, pricingBase: .pricingInfo[0].pricingExpression.baseUnit, pricingNano: .pricingInfo[0].pricingExpression.tieredRates[0].unitPrice.nanos} | select(.["resource"] == "Storage") | select (.["serviceRegions"][] | contains("central"))'
