@@ -65,7 +65,7 @@ class GenomicsOperation(object):
                         )
 
 
-Resource = namedtuple('Resource', ['duration', 'region', 'name', 'units'])
+Resource = namedtuple('Resource', ['duration', 'region', 'name', 'units', 'type', 'preemptible'])
 
 
 def vm_resource_name(name, premptible):
@@ -113,8 +113,10 @@ def vm_resource(op):
     return Resource(
             duration=vm_duration(op.duration()),
             region=op.region,
-            name=vm_resource_name(op.machine, op.preemptible),
+            name=op.machine,
             units=1,
+            type='compute',
+            preemptible=op.preemptible
             )
 
 
@@ -124,6 +126,8 @@ def disk_resources(op):
                 region=op.region,
                 name=disk_resource_name(d.type_),
                 units=d.size,
+                type='disk',
+                preemptible=op.preemptible
                 ) for d in op.disks
             ]
 
@@ -143,7 +147,15 @@ class OperationCostCalculator(object):
         return sum([self.resource_cost(x) for x in as_resources(operation)])
 
     def price(self, resource):
-        return self.pricelist_json['gcp_price_list'][resource.name][resource.region]
+        if resource.type == 'disk':
+            price = self.pricelist_json[resource.type][resource.name]['price']
+        elif resource.type == 'compute':
+            compute_type = 'preemptible' if resource.preemptible else 'standard'
+            price = self.pricelist_json[resource.type][resource.name][compute_type]['price']
+        else:
+            msg = "Do not know how to handle resource type: '{}'".format(resource.type)
+            raise Exception(msg)
+        return price
 
     def resource_cost(self, resource):
         return resource.duration * self.price(resource) * resource.units
