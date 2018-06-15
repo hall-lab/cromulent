@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, print_function
 from pprint import pprint
 
 from googleapiclient import discovery
@@ -42,7 +42,7 @@ class CromwellCostCalculator(object):
             for e in executions:
                 if e.jobid() is None: continue
                 op = GenomicsOperation(self.get_operation_metadata(e.jobid()))
-                print 'operation: {}'.format(op)
+                print('operation: {}'.format(op))
                 task_totals[e.shard()] = task_totals[e.shard()] + self.dollars(self.calculator.cost(op))
                 total_cost += self.dollars(self.calculator.cost(op))
             summary_json['tasks'].append({
@@ -56,18 +56,89 @@ class CromwellCostCalculator(object):
         summary_json['cost_per_shard'] = total_cost / max_samples
         return summary_json
 
+    def is_execution_subworkflow(self, execution):
+        if "subWorkflowMetadata" in execution:
+            return True
+        return False
+
+    def get_calls(self, metadata):
+        return metadata['calls']
+
+    def get_subworkflow_metadata(self, execution):
+        return execution['subWorkflowMetadata']
+
+    def alt_calculate_cost(self, metadata):
+        calls = self.get_calls(metadata)
+
+        summary = {}
+        subworkflow_summary_costs = {}
+
+        for task in calls:
+            print("Processing {}".format(task))
+            executions = calls[task]
+            task_costs = {} 
+            for e in executions:
+                shard = e['shardIndex']
+                print("    Shard: {}".format(shard))
+                if self.is_execution_subworkflow(e):
+                    print("    Entering Subworkflow: {}".format(shard))
+#                    import pdb; pdb.set_trace()
+                    subworkflow_summary_costs = self.alt_calculate_cost(self.get_subworkflow_metadata(e))
+#                    import pdb; pdb.set_trace()
+                    for task in subworkflow_summary_costs:
+                        if task in summary:
+                            summary[task]['total-cost'] += subworkflow_summary_costs[task]['total-cost']
+                            summary[task]['items'].append(subworkflow_summary_costs[task]['items'])
+                        else:
+                            summary[task] = subworkflow_summary_costs[task]
+#                    import pdb; pdb.set_trace()
+                else:
+                    job_id = e.get('jobId', None)
+                    if job_id is None:
+                        cache = e["callCaching"]["result"]
+                        print("        Cached -- see {}".format(cache))
+                        continue
+                    op = GenomicsOperation(self.get_operation_metadata(job_id))
+                    print('            operation: {}'.format(op))
+                    cost = self.dollars(self.calculator.cost(op))
+                    print('            cost: {}'.format(cost))
+                    task_costs[shard] = cost
+
+            if task_costs:
+                total_cost = sum(task_costs.values())
+                print("    Total Task Cost: {}".format(total_cost))
+                if task in summary:
+                    summary[task]['total-cost'] += total_cost
+                    summary[task]['items'].append(task_costs)
+                else:
+                    summary[task] = { 'total-cost': total_cost, 'items' : [task_costs] }
+#            else:
+#                summary[task] = { 'total-cost': 0.0, 'items' : [{}] }
+
+#            if subworkflow_summary_costs:
+#                for task in subworkflow_summary_costs:
+#                    if task in summary:
+#                        summary[task]['total-cost'] += subworkflow_summary_costs[task]['total-cost']
+#                        summary[task]['items'].append(subworkflow_summary_costs[task]['items'])
+#                    else:
+#                        summary[task] = subworkflow_summary_costs[task]
+
+        return summary
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('metadata', type=argparse.FileType('r'), help='metadata from a cromwell workflow from which to estimate cost')
     args = parser.parse_args()
     metadata = json.load(args.metadata)
     pricelist = generate_gcp_compute_pricelist()
-    print "The current price list as of: {}\n".format(datetime.datetime.now())
-    print json.dumps(pricelist, indent=4, sort_keys=True)
+    print("The current price list as of: {}\n".format(datetime.datetime.now()))
+    print(json.dumps(pricelist, indent=4, sort_keys=True))
 
 
     calc = CromwellCostCalculator(pricelist)
-    cost = calc.calculate_cost(metadata)
-    print json.dumps(cost, sort_keys=True, indent=4)
-    print 'Total: ${0}'.format(cost['total_cost'])
-    print 'Per Shard: ${0}'.format(cost['cost_per_shard'])
+    #cost = calc.calculate_cost(metadata)
+    #import pdb; pdb.set_trace()
+    cost = calc.alt_calculate_cost(metadata)
+    print(json.dumps(cost, sort_keys=True, indent=4))
+    # print('Total: ${0}'.format(cost['total_cost']))
+    # print('Per Shard: ${0}'.format(cost['cost_per_shard']))
