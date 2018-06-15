@@ -88,7 +88,7 @@ class CromwellCostCalculator(object):
                     for task in subworkflow_summary_costs:
                         if task in summary:
                             summary[task]['total-cost'] += subworkflow_summary_costs[task]['total-cost']
-                            summary[task]['items'].append(subworkflow_summary_costs[task]['items'])
+                            summary[task]['items'].extend(subworkflow_summary_costs[task]['items'])
                         else:
                             summary[task] = subworkflow_summary_costs[task]
 #                    import pdb; pdb.set_trace()
