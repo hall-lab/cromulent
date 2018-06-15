@@ -140,5 +140,11 @@ if __name__ == '__main__':
     #import pdb; pdb.set_trace()
     cost = calc.alt_calculate_cost(metadata)
     print(json.dumps(cost, sort_keys=True, indent=4))
+    total_cost = 0.0
+    for k in cost.keys():
+        task_cost = cost[k]['total-cost']
+        total_cost += task_cost
+        print("{} : {}".format(k, task_cost))
+    print("Total Cost: {}".format(total_cost))
     # print('Total: ${0}'.format(cost['total_cost']))
     # print('Per Shard: ${0}'.format(cost['cost_per_shard']))
