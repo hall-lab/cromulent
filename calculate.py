@@ -5,7 +5,7 @@ from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
 
 from gcloud import GenomicsOperation, OperationCostCalculator, generate_gcp_compute_pricelist
-from cromwell import Metadata
+import cromwell
 from collections import defaultdict
 
 import json
@@ -13,13 +13,27 @@ import sys
 import math
 import argparse
 import datetime
+import functools
+
+def memoize(func):
+    cache = {}
+
+    @functools.wraps(func)
+    def memoized_func(*args, **kwargs):
+        key = str(args) + str(kwargs)
+        if key not in cache:
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+
+    return memoized_func
 
 class CromwellCostCalculator(object):
 
-    def __init__(self, pricelist):
+    def __init__(self, cromwell_server, pricelist):
         credentials = GoogleCredentials.get_application_default()
         self.service = discovery.build('genomics', 'v1', credentials=credentials)
         self.calculator = OperationCostCalculator(pricelist)
+        self.cromwell_server = cromwell_server
 
     def get_operation_metadata(self, name):
         request = self.service.operations().get(name=name)
@@ -31,7 +45,7 @@ class CromwellCostCalculator(object):
         return math.ceil(raw_cost * 100) / 100
 
     def calculate_cost(self, metadata_json):
-        metadata = Metadata(metadata_json)
+        metadata = cromwell.Metadata(metadata_json)
 
         total_cost = 0
         max_samples = -1
@@ -67,6 +81,15 @@ class CromwellCostCalculator(object):
     def get_subworkflow_metadata(self, execution):
         return execution['subWorkflowMetadata']
 
+    def get_cached_job(self, execution):
+        cache = execution["callCaching"]["result"]
+        print("        Cached -- see {}".format(cache))
+        (old_wf_id, old_call_name, old_shard_index) = (cache.split(' '))[2].split(':')
+        old_metadata = self.cromwell_server.get_workflow_metadata(old_wf_id)
+        proper_shard_index = int(old_shard_index)
+        job_id = old_metadata['calls'][old_call_name][proper_shard_index]['jobId']
+        return job_id
+
     def alt_calculate_cost(self, metadata):
         calls = self.get_calls(metadata)
 
@@ -95,9 +118,7 @@ class CromwellCostCalculator(object):
                 else:
                     job_id = e.get('jobId', None)
                     if job_id is None:
-                        cache = e["callCaching"]["result"]
-                        print("        Cached -- see {}".format(cache))
-                        continue
+                        job_id = self.get_cached_job(e)
                     op = GenomicsOperation(self.get_operation_metadata(job_id))
                     print('            operation: {}'.format(op))
                     cost = self.dollars(self.calculator.cost(op))
@@ -135,9 +156,7 @@ if __name__ == '__main__':
     print(json.dumps(pricelist, indent=4, sort_keys=True))
 
 
-    calc = CromwellCostCalculator(pricelist)
-    #cost = calc.calculate_cost(metadata)
-    #import pdb; pdb.set_trace()
+    calc = CromwellCostCalculator(server, pricelist)
     cost = calc.alt_calculate_cost(metadata)
     print(json.dumps(cost, sort_keys=True, indent=4))
     total_cost = 0.0
