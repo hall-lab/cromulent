@@ -148,12 +148,43 @@ class CromwellCostCalculator(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('metadata', type=argparse.FileType('r'), help='metadata from a cromwell workflow from which to estimate cost')
+    parser.add_argument(
+        'metadata',
+        type=argparse.FileType('r'),
+        help='metadata from a cromwell workflow from which to estimate cost'
+    )
+    parser.add_argument(
+        '--workflow-id',
+        dest='workflow_id',
+        help='the primary cromwell workflow-id to calculate costs on'
+    )
+    parser.add_argument(
+        '--dump-pricelist',
+        dest='dump_pricelist',
+        type=argparse.FileType('w'),
+        help='the primary cromwell workflow-id to calculate costs on'
+    )
     args = parser.parse_args()
-    metadata = json.load(args.metadata)
+
+    #import pdb; pdb.set_trace()
+
+    # decorate the cromwell.Server class function
+    cromwell.Server.get_workflow_metadata = memoize(cromwell.Server.get_workflow_metadata)
+    server = cromwell.Server()
+
+    if not server.is_accessible():
+        msg = "Could not access the cromwell server!  Please ensure it is up!"
+        raise Exception(msg)
+
+    metadata = None
+    if args.metadata:
+        metadata = json.load(args.metadata)
+    else:
+        metadata = server.get_workflow_metadata(args.workflow_id)
+
     pricelist = generate_gcp_compute_pricelist()
-    print("The current price list as of: {}\n".format(datetime.datetime.now()))
-    print(json.dumps(pricelist, indent=4, sort_keys=True))
+    if args.dump_pricelist:
+        print(json.dumps(pricelist, indent=4, sort_keys=True), file=dump_pricelist)
 
 
     calc = CromwellCostCalculator(server, pricelist)
