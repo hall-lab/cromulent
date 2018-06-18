@@ -99,22 +99,19 @@ class CromwellCostCalculator(object):
         for task in calls:
             print("Processing {}".format(task))
             executions = calls[task]
-            task_costs = {} 
+            task_costs = {}
             for e in executions:
                 shard = e['shardIndex']
                 print("    Shard: {}".format(shard))
                 if self.is_execution_subworkflow(e):
                     print("    Entering Subworkflow: {}".format(shard))
-#                    import pdb; pdb.set_trace()
                     subworkflow_summary_costs = self.alt_calculate_cost(self.get_subworkflow_metadata(e))
-#                    import pdb; pdb.set_trace()
                     for task in subworkflow_summary_costs:
                         if task in summary:
                             summary[task]['total-cost'] += subworkflow_summary_costs[task]['total-cost']
                             summary[task]['items'].extend(subworkflow_summary_costs[task]['items'])
                         else:
                             summary[task] = subworkflow_summary_costs[task]
-#                    import pdb; pdb.set_trace()
                 else:
                     job_id = e.get('jobId', None)
                     if job_id is None:
@@ -133,16 +130,6 @@ class CromwellCostCalculator(object):
                     summary[task]['items'].append(task_costs)
                 else:
                     summary[task] = { 'total-cost': total_cost, 'items' : [task_costs] }
-#            else:
-#                summary[task] = { 'total-cost': 0.0, 'items' : [{}] }
-
-#            if subworkflow_summary_costs:
-#                for task in subworkflow_summary_costs:
-#                    if task in summary:
-#                        summary[task]['total-cost'] += subworkflow_summary_costs[task]['total-cost']
-#                        summary[task]['items'].append(subworkflow_summary_costs[task]['items'])
-#                    else:
-#                        summary[task] = subworkflow_summary_costs[task]
 
         return summary
 
@@ -165,8 +152,6 @@ if __name__ == '__main__':
         help='the primary cromwell workflow-id to calculate costs on'
     )
     args = parser.parse_args()
-
-    #import pdb; pdb.set_trace()
 
     # decorate the cromwell.Server class function
     cromwell.Server.get_workflow_metadata = memoize(cromwell.Server.get_workflow_metadata)
@@ -196,5 +181,3 @@ if __name__ == '__main__':
         total_cost += task_cost
         print("{} : {}".format(k, task_cost))
     print("Total Cost: {}".format(total_cost))
-    # print('Total: ${0}'.format(cost['total_cost']))
-    # print('Per Shard: ${0}'.format(cost['cost_per_shard']))

@@ -28,7 +28,7 @@ class Metadata(object):
 
     def calls(self):
         return {
-            k: [Execution(x) for x in v] 
+            k: [Execution(x) for x in v]
             for k, v in self.json_doc['calls'].iteritems()
             }
 

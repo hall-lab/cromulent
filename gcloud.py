@@ -299,5 +299,3 @@ def generate_gcp_compute_pricelist():
     compute_service = get_service_id(cloudbilling, 'Compute Engine')
     pricelist = construct_pricelist(cloudbilling, compute_service)
     return pricelist
-
-# cat pricing.json | jq '.["skus"] | .[] | { name, description, resource: .category.resourceFamily, serviceRegions, pricingBase: .pricingInfo[0].pricingExpression.baseUnit, pricingNano: .pricingInfo[0].pricingExpression.tieredRates[0].unitPrice.nanos} | select(.["resource"] == "Storage") | select (.["serviceRegions"][] | contains("central"))'
