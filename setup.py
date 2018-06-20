@@ -29,7 +29,7 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        cost-it=cromcost.cli:cli
+        cloud-cost=cromcost.cli:cli
     ''',
     setup_requires=["pytest-runner"],
     tests_require=["pytest"],

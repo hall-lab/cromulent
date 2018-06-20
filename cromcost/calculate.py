@@ -133,51 +133,36 @@ class CromwellCostCalculator(object):
 
         return summary
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        'metadata',
-        type=argparse.FileType('r'),
-        help='metadata from a cromwell workflow from which to estimate cost'
-    )
-    parser.add_argument(
-        '--workflow-id',
-        dest='workflow_id',
-        help='the primary cromwell workflow-id to calculate costs on'
-    )
-    parser.add_argument(
-        '--dump-pricelist',
-        dest='dump_pricelist',
-        type=argparse.FileType('w'),
-        help='the primary cromwell workflow-id to calculate costs on'
-    )
-    args = parser.parse_args()
-
+def ideal_workflow_cost(metadata_path=None,
+                        workflow_id=None,
+                        host='localhost',
+                        port=8000):
+    # setup the server object
     # decorate the cromwell.Server class function
-    cromwell.Server.get_workflow_metadata = memoize(cromwell.Server.get_workflow_metadata)
-    server = cromwell.Server()
+    cromwell.Server.get_workflow_metadata = \
+        memoize(cromwell.Server.get_workflow_metadata)
+    server = cromwell.Server(host, port)
 
     if not server.is_accessible():
         msg = "Could not access the cromwell server!  Please ensure it is up!"
         raise Exception(msg)
 
-    metadata = None
-    if args.metadata:
-        metadata = json.load(args.metadata)
-    else:
-        metadata = server.get_workflow_metadata(args.workflow_id)
-
+    # derive the pricelist
     pricelist = generate_gcp_compute_pricelist()
-    if args.dump_pricelist:
-        print(json.dumps(pricelist, indent=4, sort_keys=True), file=dump_pricelist)
 
+    # derive the metadata
+    metadata = None
+    if metadata_path:
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+    else:
+        metadata = server.get_workflow_metadata(workflow_id)
 
+    if metadata is None:
+        raise Exception("Could not derive workflow metadata")
+
+    # perform the calculations
     calc = CromwellCostCalculator(server, pricelist)
     cost = calc.alt_calculate_cost(metadata)
-    print(json.dumps(cost, sort_keys=True, indent=4))
-    total_cost = 0.0
-    for k in cost.keys():
-        task_cost = cost[k]['total-cost']
-        total_cost += task_cost
-        print("{} : {}".format(k, task_cost))
-    print("Total Cost: {}".format(total_cost))
+
+    return cost

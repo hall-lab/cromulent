@@ -299,3 +299,9 @@ def generate_gcp_compute_pricelist():
     compute_service = get_service_id(cloudbilling, 'Compute Engine')
     pricelist = construct_pricelist(cloudbilling, compute_service)
     return pricelist
+
+def get_raw_compute_engine_skus():
+    billing_api = setup_cloudbilling_api_access()
+    compute_service = get_service_id(billing_api, 'Compute Engine')
+    compute_skus = get_skus_for_service(billing_api, compute_service)
+    return compute_skus
