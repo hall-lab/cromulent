@@ -19,6 +19,7 @@ def cli():
     # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
+# -- Subcommands ---------------------------------------------------------------
 @cli.command(name='price-list', short_help="pricing info")
 @click.option('--raw', is_flag=True,
               help='dump the raw compute engine sku prices')
@@ -59,7 +60,6 @@ def metadata(workflow_id, output, host, port):
             print(pretty_metadata, file=f)
     else:
         print(pretty_metadata)
-
 
 @cli.command(short_help="estimate ideal workflow cost")
 @click.option('--metadata', type=click.Path(exists=True), default=None,
