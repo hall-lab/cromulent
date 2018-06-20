@@ -7,7 +7,7 @@ import click
 from cromcost.version import __version__
 import cromcost.cromwell as cromwell
 import cromcost.calculate as calc
-import cromcost.report as report
+import cromcost.report as creport
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
