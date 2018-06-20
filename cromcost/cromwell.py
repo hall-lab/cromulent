@@ -1,5 +1,4 @@
-from __future__ import print_function
-import json
+import json, logging
 
 import requests
 
@@ -62,8 +61,6 @@ class Server(object):
                         workflow_id,
                         'metadata?expandSubWorkflows=true'])
 
-        print("Fetching metadata for the first time for workflow: {}".format(workflow_id))
+        logging.info("Fetching workflow metadata: {}".format(workflow_id))
         r = requests.get(url)
         return r.json()
-
-

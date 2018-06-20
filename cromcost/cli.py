@@ -1,13 +1,23 @@
 from __future__ import print_function
 
-import signal, sys, os, json
+import signal, sys, os, json, logging
 
 import click
 
 from cromcost.version import __version__
 import cromcost.cromwell as cromwell
 import cromcost.calculate as calc
+import cromcost.gcloud as gcloud
 import cromcost.report as creport
+
+logging.basicConfig(
+    format='[%(asctime)s] : %(name)s : %(levelname)s : %(message)s',
+    level=logging.INFO
+)
+
+# suppress the loggers from the other third-party modules
+for name in logging.Logger.manager.loggerDict.keys():
+    logging.getLogger(name).setLevel(logging.CRITICAL)
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
@@ -27,7 +37,6 @@ def cli():
               help='Path to dump the raw JSON pricing information to')
 def price_list(output, raw):
     if raw:
-        import cromcost.gcloud as gcloud
         data = gcloud.get_raw_compute_engine_skus()
     else:
         data = calc.generate_gcp_compute_pricelist()
@@ -77,7 +86,12 @@ def metadata(workflow_id, output, host, port):
 @click.option('--report', type=click.Choice(['standard', 'raw']),
               default='standard',
               help='output report choice')
-def estimate(metadata, price_list, workflow_id, host, port, report):
+@click.option('-v', '--verbose', count=True,
+              help='verbosity level')
+def estimate(metadata, price_list, workflow_id, host, port, report, verbose):
+    if verbose:
+        _setup_logging_level(verbose)
+
     if (metadata is None) and (workflow_id is None):
         sys.exit(("[err] Please specify either a "
                   "'--metadata' or '--workflow-id' option!"))
@@ -110,3 +124,20 @@ def _identify_workflow_id(metadata_json):
         data = json.load(f)
         wf_id = data['id']
     return wf_id
+
+def _setup_logging_level(verbosity_level):
+    if verbosity_level == 1:
+        logging.getLogger('root').setLevel(logging.DEBUG)
+
+    if verbosity_level == 2:
+        logging.getLogger('root').setLevel(logging.DEBUG)
+        _enable_third_party_module_logs(logging.INFO)
+
+    if verbosity_level >= 3:
+        logging.getLogger('root').setLevel(logging.DEBUG)
+        _enable_third_party_module_logs(logging.DEBUG)
+
+def _enable_third_party_module_logs(level):
+    # re-enable the loggers from the other third-party modules
+    for name in logging.Logger.manager.loggerDict.keys():
+        logging.getLogger(name).setLevel(level)

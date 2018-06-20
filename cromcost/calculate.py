@@ -1,4 +1,4 @@
-from __future__ import division, print_function
+from __future__ import division
 from pprint import pprint
 
 from googleapiclient import discovery
@@ -8,6 +8,7 @@ from gcloud import GenomicsOperation, OperationCostCalculator, generate_gcp_comp
 import cromwell
 from collections import defaultdict
 
+import logging
 import json
 import sys
 import math
@@ -56,7 +57,7 @@ class CromwellCostCalculator(object):
             for e in executions:
                 if e.jobid() is None: continue
                 op = GenomicsOperation(self.get_operation_metadata(e.jobid()))
-                print('operation: {}'.format(op))
+                logging.debug('operation: {}'.format(op))
                 task_totals[e.shard()] = task_totals[e.shard()] + self.dollars(self.calculator.cost(op))
                 total_cost += self.dollars(self.calculator.cost(op))
             summary_json['tasks'].append({
@@ -83,7 +84,7 @@ class CromwellCostCalculator(object):
 
     def get_cached_job(self, execution):
         cache = execution["callCaching"]["result"]
-        print("        Cached -- see {}".format(cache))
+        logging.debug("        Cached -- see {}".format(cache))
         (old_wf_id, old_call_name, old_shard_index) = (cache.split(' '))[2].split(':')
         old_metadata = self.cromwell_server.get_workflow_metadata(old_wf_id)
         proper_shard_index = int(old_shard_index)
@@ -97,14 +98,15 @@ class CromwellCostCalculator(object):
         subworkflow_summary_costs = {}
 
         for task in calls:
-            print("Processing {}".format(task))
+            logging.debug("Processing {}".format(task))
             executions = calls[task]
             task_costs = {}
             for e in executions:
                 shard = e['shardIndex']
-                print("    Shard: {}".format(shard))
+                logging.debug("    Shard: {}".format(shard))
                 if self.is_execution_subworkflow(e):
-                    print("    Entering Subworkflow: {}".format(shard))
+                    subworkflow_id = e['subWorkflowMetadata']['id']
+                    logging.debug("    Entering Subworkflow: {} / {}".format(shard, subworkflow_id))
                     subworkflow_summary_costs = self.alt_calculate_cost(self.get_subworkflow_metadata(e))
                     for task in subworkflow_summary_costs:
                         if task in summary:
@@ -117,14 +119,14 @@ class CromwellCostCalculator(object):
                     if job_id is None:
                         job_id = self.get_cached_job(e)
                     op = GenomicsOperation(self.get_operation_metadata(job_id))
-                    print('            operation: {}'.format(op))
+                    logging.debug('            operation: {}'.format(op))
                     cost = self.dollars(self.calculator.cost(op))
-                    print('            cost: {}'.format(cost))
+                    logging.debug('            cost: {}'.format(cost))
                     task_costs[shard] = cost
 
             if task_costs:
                 total_cost = sum(task_costs.values())
-                print("    Total Task Cost: {}".format(total_cost))
+                logging.debug("    Total Task Cost: {}".format(total_cost))
                 if task in summary:
                     summary[task]['total-cost'] += total_cost
                     summary[task]['items'].append(task_costs)
@@ -144,27 +146,38 @@ def ideal_workflow_cost(metadata_path=None,
         memoize(cromwell.Server.get_workflow_metadata)
     server = cromwell.Server(host, port)
 
+    logging.info("Checking if we have access to the cromwell server")
     if not server.is_accessible():
         msg = "Could not access the cromwell server!  Please ensure it is up!"
+        logging.error(msg)
         raise Exception(msg)
 
     # derive the pricelist
     if pricelist is None:
+        logging.info("Obtaining the compute price list from Google Cloud")
         pricelist = generate_gcp_compute_pricelist()
 
     # derive the metadata
     metadata = None
     if metadata_path:
+        msg = "Loading the workflow metadata from : {}".format(metadata_path)
+        logging.info(msg)
         with open(metadata_path) as f:
             metadata = json.load(f)
     else:
+        logging.info("Fetching metadata from cromwell")
         metadata = server.get_workflow_metadata(workflow_id)
+        logging.info("Fetched metadata from cromwell")
 
     if metadata is None:
-        raise Exception("Could not derive workflow metadata")
+        msg = "Could not derive workflow metadata"
+        logger.error(msg)
+        raise Exception(msg)
 
     # perform the calculations
     calc = CromwellCostCalculator(server, pricelist)
+    logging.info("Starting cost calculations")
     cost = calc.alt_calculate_cost(metadata)
+    logging.info("Finished cost calculations")
 
     return cost
