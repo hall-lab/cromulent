@@ -135,6 +135,7 @@ class CromwellCostCalculator(object):
 
 def ideal_workflow_cost(metadata_path=None,
                         workflow_id=None,
+                        pricelist=None,
                         host='localhost',
                         port=8000):
     # setup the server object
@@ -148,7 +149,8 @@ def ideal_workflow_cost(metadata_path=None,
         raise Exception(msg)
 
     # derive the pricelist
-    pricelist = generate_gcp_compute_pricelist()
+    if pricelist is None:
+        pricelist = generate_gcp_compute_pricelist()
 
     # derive the metadata
     metadata = None

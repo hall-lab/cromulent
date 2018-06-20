@@ -62,19 +62,51 @@ def metadata(workflow_id, output, host, port):
 
 
 @cli.command(short_help="estimate ideal workflow cost")
-@click.option('--metadata', type=click.Path(),
-              help='Path to a fully formed cromwell metadata json file.')
-@click.option('--workflow-id', type=click.STRING,
+@click.option('--metadata', type=click.Path(exists=True), default=None,
+              help=('Path to an existing (not-raw) '
+                    'cromwell workflow metadata json file.'))
+@click.option('--price-list', type=click.Path(exists=True), default=None,
+              help='Path to an existing pricelist json file.')
+@click.option('--workflow-id', type=click.STRING, default=None,
               help=('A cromwell workflow-id to fetch metadata from '
                     'the cromwell server'))
 @click.option('--host', type=click.STRING, default='localhost',
               help='cromwell web server host')
 @click.option('--port', type=click.INT, default=8000,
               help='cromwell web server port')
-def estimate(metadata, workflow_id, host, port):
-    costs = calc.ideal_workflow_cost(metadata, workflow_id, host, port)
-    report.standard_cost_report(costs)
+@click.option('--report', type=click.Choice(['standard', 'raw']),
+              default='standard',
+              help='output report choice')
+def estimate(metadata, price_list, workflow_id, host, port, report):
+    if (metadata is None) and (workflow_id is None):
+        sys.exit(("[err] Please specify either a "
+                  "'--metadata' or '--workflow-id' option!"))
+
+    wf_id = _identify_workflow_id(metadata) if metadata else workflow_id
+    costs = calc.ideal_workflow_cost(
+        metadata,
+        workflow_id,
+        price_list,
+        host,
+        port
+    )
+
+    reporter = {
+        'raw' : creport.raw_cost_report,
+        'standard' : creport.standard_cost_report
+    }
+
+    fn = reporter[report]
+    fn(wf_id, costs)
 
 @cli.command(short_help="Inspect billing via BigQuery")
 def bq():
     sys.exit('[err] Subcommand not implemented yet!')
+
+# -- Helper functions ----------------------------------------------------------
+def _identify_workflow_id(metadata_json):
+    wf_id = None
+    with open(metadata, 'r') as f:
+        data = json.load(f)
+        wf_id = data['id']
+    return wf_id
