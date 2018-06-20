@@ -76,6 +76,9 @@ def metadata(workflow_id, output, host, port):
                     'cromwell workflow metadata json file.'))
 @click.option('--price-list', type=click.Path(exists=True), default=None,
               help='Path to an existing pricelist json file.')
+@click.option('--import-raw-cost-data', type=click.Path(exists=True),
+              default=None,
+              help='Import prior calculated raw cost data (in JSON format)')
 @click.option('--workflow-id', type=click.STRING, default=None,
               help=('A cromwell workflow-id to fetch metadata from '
                     'the cromwell server'))
@@ -88,10 +91,32 @@ def metadata(workflow_id, output, host, port):
               help='output report choice')
 @click.option('-v', '--verbose', count=True,
               help='verbosity level')
-def estimate(metadata, price_list, workflow_id, host, port, report, verbose):
+def estimate(metadata,
+             price_list,
+             import_raw_cost_data,
+             workflow_id,
+             host,
+             port,
+             report,
+             verbose):
     if verbose:
         _setup_logging_level(verbose)
 
+    reporter = {
+        'raw' : creport.raw_cost_report,
+        'standard' : creport.standard_cost_report
+    }
+
+    report_fn = reporter[report]
+
+    # go straight to the report generation
+    if import_raw_cost_data:
+        with open(import_raw_cost_data, 'r') as f:
+            costs = json.load(f)
+        report_fn(costs['id'], costs['tasks'])
+        sys.exit(0)
+
+    # otherwise prepare to cost calcuate and then report
     if (metadata is None) and (workflow_id is None):
         sys.exit(("[err] Please specify either a "
                   "'--metadata' or '--workflow-id' option!"))
@@ -105,13 +130,7 @@ def estimate(metadata, price_list, workflow_id, host, port, report, verbose):
         port
     )
 
-    reporter = {
-        'raw' : creport.raw_cost_report,
-        'standard' : creport.standard_cost_report
-    }
-
-    fn = reporter[report]
-    fn(wf_id, costs)
+    report_fn(wf_id, costs)
 
 @cli.command(short_help="Inspect billing via BigQuery")
 def bq():
