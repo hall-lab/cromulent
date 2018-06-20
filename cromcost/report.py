@@ -33,15 +33,6 @@ def standard_cost_report(wf_id, json_costs):
         puts(colored.yellow("Total Calls : {}".format(total_calls)))
         puts('================================')
 
-#def standard_cost_report(wf_id, json_costs):
-#    print(json.dumps(json_costs, sort_keys=True, indent=4))
-#    total_cost = 0.0
-#    for k in json_costs.keys():
-#        task_cost = json_costs[k]['total-cost']
-#        total_cost += task_cost
-#        print("{} : {}".format(k, task_cost))
-#    print("Total Cost: {}".format(total_cost))
-
 def raw_cost_report(wf_id, json_costs):
     data = { 'id' : wf_id, 'tasks' : json_costs }
     print(json.dumps(data, sort_keys=True, indent=4))
