@@ -36,3 +36,13 @@ def standard_cost_report(wf_id, json_costs):
 def raw_cost_report(wf_id, json_costs):
     data = { 'id' : wf_id, 'tasks' : json_costs }
     print(json.dumps(data, sort_keys=True, indent=4))
+
+def display_workflow_status(wf_id, status):
+    if status == 'Failed':
+        color = colored.red
+    elif status == 'Succeeded':
+        color = colored.green
+    else:
+        color = colored.yellow
+
+    print("{} : {}".format(wf_id, color(status)))

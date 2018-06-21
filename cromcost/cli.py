@@ -132,6 +132,20 @@ def estimate(metadata,
 
     report_fn(wf_id, costs)
 
+@cli.command(short_help="get workflow status")
+@click.option('--host', type=click.STRING, default='localhost',
+              help='cromwell web server host')
+@click.option('--port', type=click.INT, default=8000,
+              help='cromwell web server port')
+@click.argument('workflow-id', type=click.STRING)
+def status(workflow_id, host, port):
+    server = cromwell.Server(host, port)
+    if not server.is_accessible():
+        msg = "Could not access the cromwell server!  Please ensure it is up!"
+        raise Exception(msg)
+    status = server.get_workflow_status(workflow_id)
+    creport.display_workflow_status(workflow_id, status)
+
 @cli.command(short_help="Inspect billing via BigQuery")
 def bq():
     sys.exit('[err] Subcommand not implemented yet!')

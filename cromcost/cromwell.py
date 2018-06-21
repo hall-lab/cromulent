@@ -65,3 +65,17 @@ class Server(object):
         r = requests.get(url)
         logging.debug("Obtained workflow metadata")
         return r.json()
+
+    def get_workflow_status(self, workflow_id):
+        base_url = self._get_base_url()
+        url = '/'.join([base_url,
+                        'api',
+                        'workflows',
+                        'v1',
+                        workflow_id,
+                        'status'])
+
+        logging.debug("Fetching workflow status: {}".format(workflow_id))
+        r = requests.get(url)
+        logging.debug("Obtained workflow status")
+        return r.json()['status']
