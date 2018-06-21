@@ -63,4 +63,5 @@ class Server(object):
 
         logging.info("Fetching workflow metadata: {}".format(workflow_id))
         r = requests.get(url)
+        logging.debug("Obtained workflow metadata")
         return r.json()
