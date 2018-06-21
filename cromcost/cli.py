@@ -30,7 +30,8 @@ def cli():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 # -- Subcommands ---------------------------------------------------------------
-@cli.command(name='price-list', short_help="pricing info")
+@cli.command(name='price-list',
+             short_help="retrieve pricing info from the Google Cloud API")
 @click.option('--raw', is_flag=True,
               help='dump the raw compute engine sku prices')
 @click.option('--output', type=click.Path(), default=None,
