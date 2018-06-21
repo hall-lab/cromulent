@@ -14,7 +14,7 @@ test:
 	python setup.py test
 
 clean:
-	find ./cromcost -name "*.pyc" -exec rm {} \;
+	find ./cromulent -name "*.pyc" -exec rm {} \;
 
 docs: check-sphinx
 	git checkout -b gh-pages origin/gh-pages

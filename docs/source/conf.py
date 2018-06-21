@@ -19,7 +19,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = u'cromwell-cost'
+project = u'cromulent'
 copyright = u'2018, David E. Larson, Indraniel Das'
 author = u'David E. Larson, Indraniel Das'
 
@@ -103,7 +103,7 @@ html_static_path = ['_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'cromwell-costdoc'
+htmlhelp_basename = 'cromulentdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -130,7 +130,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'cromwell-cost.tex', u'cromwell-cost Documentation',
+    (master_doc, 'cromulent.tex', u'cromulent Documentation',
      u'David E. Larson, Indraniel Das', 'manual'),
 ]
 
@@ -140,7 +140,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'cromwell-cost', u'cromwell-cost Documentation',
+    (master_doc, 'cromulent', u'cromulent Documentation',
      [author], 1)
 ]
 
@@ -151,8 +151,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'cromwell-cost', u'cromwell-cost Documentation',
-     author, 'cromwell-cost', 'One line description of project.',
+    (master_doc, 'cromulent', u'cromulent Documentation',
+     author, 'cromulent', 'One line description of project.',
      'Miscellaneous'),
 ]
 

@@ -4,11 +4,11 @@ import signal, sys, os, json, logging
 
 import click
 
-from cromcost.version import __version__
-import cromcost.cromwell as cromwell
-import cromcost.calculate as calc
-import cromcost.gcloud as gcloud
-import cromcost.report as creport
+from cromulent.version import __version__
+import cromulent.cromwell as cromwell
+import cromulent.calculate as calc
+import cromulent.gcloud as gcloud
+import cromulent.report as creport
 
 logging.basicConfig(
     format='[%(asctime)s] : %(name)s : %(levelname)s : %(message)s',

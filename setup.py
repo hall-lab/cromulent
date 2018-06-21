@@ -8,13 +8,13 @@ with open('README.md') as f:
 with open('LICENSE') as f:
     license = f.read()
 
-with open('cromcost/version.py') as f:
+with open('cromulent/version.py') as f:
     exec(f.read())
 
 setup(
-    name='cromwell-cost',
+    name='cromulent',
     version=__version__,
-    description='Estimate cost of cromwell workflows on Google Cloud Platform',
+    description='Cromwell helper for workflows run on the Google Cloud Platform',
     long_description=readme,
     author='David E. Larson',
     author_email='delarson@wustl.edu',
@@ -30,7 +30,7 @@ setup(
     ],
     entry_points='''
         [console_scripts]
-        cloud-cost=cromcost.cli:cli
+        cromulent=cromulent.cli:cli
     ''',
     setup_requires=["pytest-runner"],
     tests_require=["pytest"],
