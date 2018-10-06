@@ -19,7 +19,7 @@ setup(
     author='David E. Larson',
     author_email='delarson@wustl.edu',
     license=license,
-    url='https://github.com/ernfrid/cromwell_cost',
+    url='https://github.com/hall-lab/cromulent',
     install_requires=[
         'click==6.7',
         'clint==0.5.1',
