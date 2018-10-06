@@ -26,7 +26,8 @@ setup(
         'google-api-python-client==1.7.3',
         'python-dateutil==2.7.3',
         'requests==2.19.1',
-        'tabulate==0.8.2'
+        'tabulate==0.8.2',
+        'oauth2client==4.1.3',
     ],
     entry_points='''
         [console_scripts]
