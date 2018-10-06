@@ -1,0 +1,6 @@
+click
+clint
+google-api-python-client
+python-dateutil
+requests
+tabulate
