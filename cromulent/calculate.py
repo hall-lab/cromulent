@@ -4,7 +4,7 @@ from pprint import pprint
 from googleapiclient import discovery
 from oauth2client.client import GoogleCredentials
 
-from gcloud import GenomicsOperation, OperationCostCalculator, generate_gcp_compute_pricelist
+from gcloud import GenomicsOperation, OperationCostCalculator, generate_gcp_compute_pricelist, get_raw_compute_engine_skus
 import cromwell
 from collections import defaultdict
 
@@ -156,6 +156,53 @@ def ideal_workflow_cost(metadata_path=None,
     if pricelist is None:
         logging.info("Obtaining the compute price list from Google Cloud")
         pricelist = generate_gcp_compute_pricelist()
+
+    # derive the metadata
+    metadata = None
+    if metadata_path:
+        msg = "Loading the workflow metadata from : {}".format(metadata_path)
+        logging.info(msg)
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+    else:
+        logging.info("Fetching metadata from cromwell")
+        metadata = server.get_workflow_metadata(workflow_id)
+        logging.info("Fetched metadata from cromwell")
+
+    if metadata is None:
+        msg = "Could not derive workflow metadata"
+        logger.error(msg)
+        raise Exception(msg)
+
+    # perform the calculations
+    calc = CromwellCostCalculator(server, pricelist)
+    logging.info("Starting cost calculations")
+    cost = calc.alt_calculate_cost(metadata)
+    logging.info("Finished cost calculations")
+
+    return cost
+
+def ideal_workflow_cost_alt(metadata_path=None,
+                        workflow_id=None,
+                        pricelist=None,
+                        host='localhost',
+                        port=8000):
+    # setup the server object
+    # decorate the cromwell.Server class function
+    cromwell.Server.get_workflow_metadata = \
+        memoize(cromwell.Server.get_workflow_metadata)
+    server = cromwell.Server(host, port)
+
+    logging.info("Checking if we have access to the cromwell server")
+    if not server.is_accessible():
+        msg = "Could not access the cromwell server!  Please ensure it is up!"
+        logging.error(msg)
+        raise Exception(msg)
+
+    # derive the skus
+    if pricelist is None:
+        logging.info("Obtaining the compute price list from Google Cloud")
+        pricelist = get_raw_compute_engine_skus()
 
     # derive the metadata
     metadata = None

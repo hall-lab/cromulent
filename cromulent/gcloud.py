@@ -8,7 +8,7 @@ from oauth2client.client import GoogleCredentials
 
 class Disk(object):
 
-    def __init__(self, size, disk_type='PERSISTENT_HDD'):
+    def __init__(self, size, disk_type='pd-standard'):
         self.size = size
         self.type_ = disk_type
 
@@ -22,6 +22,7 @@ class GenomicsOperation(object):
         self.zone = meta['events'][-1]['details']['zone'] # TODO - is this ok to always take the earliest event to get zone? Is it always VM starting?
         self.region, _ = self.zone.rsplit('-', 1)
         self.preemptible = vm['preemptible']
+        self.project = meta['pipeline']['resources']['projectId']
         self.start_time = dateutil.parser.parse(
             meta['startTime']
             )
@@ -64,7 +65,7 @@ class GenomicsOperation(object):
                         )
 
 
-Resource = namedtuple('Resource', ['duration', 'region', 'name', 'units', 'type', 'preemptible'])
+Resource = namedtuple('Resource', ['duration', 'region', 'name', 'units', 'type', 'preemptible', 'zone', 'project'])
 
 
 def vm_resource_name(name, premptible):
@@ -75,14 +76,7 @@ def vm_resource_name(name, premptible):
 
 
 def disk_resource_name(type_):
-    lineitem = 'CP-COMPUTEENGINE-STORAGE-PD-{0}'
-    if type_ == 'PERSISTENT_HDD':
-        disk_code = 'CAPACITY'
-    elif type_ == 'PERSISTENT_SSD':
-        disk_code = 'SSD'
-    else:
-        raise RuntimeError('Unknown disk type: {0}'.format(type_))
-    return lineitem.format(disk_code)
+    return type_
 
 
 def vm_duration(duration):
@@ -115,7 +109,9 @@ def vm_resource(op):
             name=op.machine,
             units=1,
             type='compute',
-            preemptible=op.preemptible
+            preemptible=op.preemptible,
+            zone=op.zone,
+            project=op.project
             )
 
 
@@ -126,7 +122,9 @@ def disk_resources(op):
                 name=disk_resource_name(d.type_),
                 units=d.size,
                 type='disk',
-                preemptible=op.preemptible
+                preemptible=op.preemptible,
+                zone=op.zone,
+                project=op.project
                 ) for d in op.disks
             ]
 
@@ -139,18 +137,31 @@ def as_resources(op):
 
 class OperationCostCalculator(object):
 
-    def __init__(self, pricelist_json):
-        self.pricelist_json = pricelist_json
+    def __init__(self, skus):
+        self.machine_types = MachineTypes()
+        self.disk_types = DiskTypes()
+        self.compute_skus = skus
 
     def cost(self, operation):
         return sum([self.resource_cost(x) for x in as_resources(operation)])
 
     def price(self, resource):
         if resource.type == 'disk':
-            price = self.pricelist_json[resource.type][resource.name]['price']
+            sku = self.compute_skus[self.disk_types.formal_name(resource.name)]
+            price = get_disk_price(sku)
         elif resource.type == 'compute':
-            compute_type = 'preemptible' if resource.preemptible else 'standard'
-            price = self.pricelist_json[resource.type][resource.name][compute_type]['price']
+            _, cpus, mem = resource.name.split('-')
+            names = self.machine_types.formal_names(
+                    resource.project,
+                    resource.zone,
+                    cpus,
+                    mem,
+                    resource.preemptible
+                    )
+            price = 0.0
+            for name, unit in zip(names, (cpus, int(mem) / 1024.0)):
+               component_price = get_compute_price(self.compute_skus[name]) * int(unit)
+               price += component_price
         else:
             msg = "Do not know how to handle resource type: '{}'".format(resource.type)
             raise Exception(msg)
@@ -160,11 +171,35 @@ class OperationCostCalculator(object):
         return resource.duration * self.price(resource) * resource.units
 
 
+class DiskTypes(object):
+    def __init__(self):
+        self._disk_types = disk_types()
+
+    def formal_name(self, name):
+        return self._disk_types[name]
+
+
 class MachineTypes(object):
     def __init__(self):
         credentials = GoogleCredentials.get_application_default()
         self.service = discovery.build('compute', 'v1', credentials=credentials)
         self.predefined_machines = {}
+	self._resource_classes = {
+		'n1-highcpu': 'N1 High-CPU Instance',
+		'n1-highmem': 'N1 High-mem Instance',
+	 	'n1-megamem': 'Memory Optimized',
+		'n1-standard': 'N1 Standard Instance',
+		'n1-ultramem': 'Memory Optimized',
+		'f1-micro': 'Micro instance with burstable CPU',
+		'g1-small': 'Small instance with 1 VCPU',
+		'custom': 'Custom instance'
+	}
+	self._region_formal_name = {
+		'us-west2': 'Los Angeles',
+		'us-east4': 'Virginia',
+		'us': 'Americas'
+	}
+
 
     def _retrieve_from_api(self, project, zone):
         machines = self.predefined_machines.setdefault(project, {}).setdefault(zone, {})
@@ -174,13 +209,40 @@ class MachineTypes(object):
             for machine_type in response['items']:
                 key = (machine_type['guestCpus'], machine_type['memoryMb'])
                 machines[key] = machine_type
+            request = self.service.machineTypes().list_next(previous_request=request, previous_response=response)
 
-    def is_predefined(self, project, zone, cpus, memoryMb):
-        if project not in self.predefined_machines or zone not in self.predefined_machines:
+    def resource_group(self, project, zone, cpus, memoryMb):
+        if project not in self.predefined_machines or zone not in self.predefined_machines[project]:
             self._retrieve_from_api(project, zone)
         key = (cpus, memoryMb)
-        return key in self.predefined_machines[project][zone]
+        try:
+	   name = self.predefined_machines[project][zone][key]['name']
+	except KeyError:
+	   name = 'custom'
+        return self._resource_classes[name]
 
+    def region_string(self, zone):
+	region, _ = zone.rsplit('-', 1)
+	if region in self._region_formal_name:
+	   return self._region_formal_name[region]
+        else:
+	   super_region, _ = region.split('-')
+	   return self._region_formal_name[super_region]
+
+    def formal_names(self, project, zone, cpus, memoryMb, preemptible):
+        # return two formal names, one for CPU, one for RAM
+	# note that for g1-small and f1-micro, there is but one
+	name = self.resource_group(project, zone, cpus, memoryMb)
+	region_string = self.region_string(zone)
+	if 'with' in name:
+	   # special. Only one sku.
+	   units = (name)
+        else:
+           units = [' '.join((name, x)) for x in ['Core', 'Ram']]
+        if preemptible:
+            units = ['Preemptible ' + x for x in units]
+	return [ '{unit} running in {region}'.format(unit=x, region=self.region_string(zone)) for x in units]
+           
 
 # functions to gather the latest Google Cloud Platform Compute costs
 
@@ -229,8 +291,8 @@ def disk_types():
     disks = {
 #        'CP-COMPUTEENGINE-LOCAL-SSD' : 'SSD backed Local Storage',
 #        'CP-COMPUTEENGINE-STORAGE-PD-SNAPSHOT' : 'Storage PD Snapshot',   # aka "Snapshot storage"
-        'CP-COMPUTEENGINE-STORAGE-PD-SSD' : 'SSD backed PD Capacity',     # aka SSD provisioned space
-        'CP-COMPUTEENGINE-STORAGE-PD-CAPACITY' : 'Storage PD Capacity',   # aka Standard provisioned space
+        'pd-ssd' : 'SSD backed PD Capacity',     # aka SSD provisioned space
+        'pd-standard' : 'Storage PD Capacity',   # aka Standard provisioned space
 #        'CP-COMPUTEENGINE-LOCAL-SSD-PREMPTIBLE' : 'SSD backed Local Storage attached to Preemptible VMs'
     }
     # New Name: Storage Image -- not sure what old name this maps back onto????

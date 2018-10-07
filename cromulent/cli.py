@@ -123,7 +123,7 @@ def estimate(metadata,
                   "'--metadata' or '--workflow-id' option!"))
 
     wf_id = _identify_workflow_id(metadata) if metadata else workflow_id
-    costs = calc.ideal_workflow_cost(
+    costs = calc.ideal_workflow_cost_alt(
         metadata,
         workflow_id,
         price_list,
