@@ -17,12 +17,11 @@ class GenomicsOperation(object):
 
     def __init__(self, response_json):
         meta = response_json['metadata']
-        gce = meta['runtimeMetadata']['computeEngine']
-        self.machine = gce['machineType'].split('/')[1]
-        self.zone = gce['zone']
+        vm =  meta['pipeline']['resources']['virtualMachine']
+        self.machine = vm['machineType'] # This is now likely to be something like custom-8-7424, even for pre-defined types.
+        self.zone = meta['events'][-1]['details']['zone'] # TODO - is this ok to always take the earliest event to get zone? Is it always VM starting?
         self.region, _ = self.zone.rsplit('-', 1)
-        resources_dict = meta['request']['pipelineArgs']['resources']
-        self.preemptible = resources_dict['preemptible']
+        self.preemptible = vm['preemptible']
         self.start_time = dateutil.parser.parse(
             meta['startTime']
             )
@@ -35,9 +34,9 @@ class GenomicsOperation(object):
             self.length = None
 
         self.disks = [
-            Disk(x['sizeGb'], x['type']) for x in resources_dict['disks']
+            Disk(x['sizeGb'], x['type']) for x in vm['disks']
             ]
-        self.disks.append(Disk(resources_dict['bootDiskSizeGb']))
+        self.disks.append(Disk(vm['bootDiskSizeGb']))
 
     def duration(self):
         if self.length:

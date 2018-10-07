@@ -32,12 +32,12 @@ class CromwellCostCalculator(object):
 
     def __init__(self, cromwell_server, pricelist):
         credentials = GoogleCredentials.get_application_default()
-        self.service = discovery.build('genomics', 'v1', credentials=credentials)
+        self.service = discovery.build('genomics', 'v2alpha1', credentials=credentials)
         self.calculator = OperationCostCalculator(pricelist)
         self.cromwell_server = cromwell_server
 
     def get_operation_metadata(self, name):
-        request = self.service.operations().get(name=name)
+        request = self.service.projects().operations().get(name=name)
         response = request.execute()
         return response
 
