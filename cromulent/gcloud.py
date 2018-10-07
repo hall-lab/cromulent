@@ -159,6 +159,29 @@ class OperationCostCalculator(object):
     def resource_cost(self, resource):
         return resource.duration * self.price(resource) * resource.units
 
+
+class MachineTypes(object):
+    def __init__(self):
+        credentials = GoogleCredentials.get_application_default()
+        self.service = discovery.build('compute', 'v1', credentials=credentials)
+        self.predefined_machines = {}
+
+    def _retrieve_from_api(self, project, zone):
+        machines = self.predefined_machines.setdefault(project, {}).setdefault(zone, {})
+        request = self.service.machineTypes().list(project=project, zone=zone)
+        while request is not None:
+            response = request.execute()
+            for machine_type in response['items']:
+                key = (machine_type['guestCpus'], machine_type['memoryMb'])
+                machines[key] = machine_type
+
+    def is_predefined(self, project, zone, cpus, memoryMb):
+        if project not in self.predefined_machines or zone not in self.predefined_machines:
+            self._retrieve_from_api(project, zone)
+        key = (cpus, memoryMb)
+        return key in self.predefined_machines[project][zone]
+
+
 # functions to gather the latest Google Cloud Platform Compute costs
 
 # loosely based on https://github.com/google/google-api-python-client/issues/484
