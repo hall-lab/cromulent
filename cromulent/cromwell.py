@@ -59,7 +59,7 @@ class Server(object):
                         'workflows',
                         'v1',
                         workflow_id,
-                        'metadata?expandSubWorkflows=true'])
+                        'metadata?expandSubWorkflows=false'])
 
         logging.info("Fetching workflow metadata: {}".format(workflow_id))
         r = requests.get(url)

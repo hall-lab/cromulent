@@ -72,7 +72,7 @@ class CromwellCostCalculator(object):
         return summary_json
 
     def is_execution_subworkflow(self, execution):
-        if "subWorkflowMetadata" in execution:
+        if 'subWorkflowId' in executioni or 'subWorkflowMetadata' in execution:
             return True
         return False
 
@@ -80,7 +80,13 @@ class CromwellCostCalculator(object):
         return metadata['calls']
 
     def get_subworkflow_metadata(self, execution):
-        return execution['subWorkflowMetadata']
+        try:
+            return execution['subWorkflowMetadata']
+        except KeyError:
+            # retrieve subworkflow
+            wfid = execution['subWorkflowId']
+            meta = self.cromwell_server.get_workflow_metadata(wfid)
+            return meta
 
     def get_cached_job(self, execution):
         cache = execution["callCaching"]["result"]
@@ -105,7 +111,7 @@ class CromwellCostCalculator(object):
                 shard = e['shardIndex']
                 logging.debug("    Shard: {}".format(shard))
                 if self.is_execution_subworkflow(e):
-                    subworkflow_id = e['subWorkflowMetadata']['id']
+                    subworkflow_id = e['subWorkflowId']
                     logging.debug("    Entering Subworkflow: {} / {}".format(shard, subworkflow_id))
                     subworkflow_summary_costs = self.alt_calculate_cost(self.get_subworkflow_metadata(e))
                     for task in subworkflow_summary_costs:
