@@ -72,7 +72,7 @@ class CromwellCostCalculator(object):
         return summary_json
 
     def is_execution_subworkflow(self, execution):
-        if 'subWorkflowId' in executioni or 'subWorkflowMetadata' in execution:
+        if 'subWorkflowId' in execution or 'subWorkflowMetadata' in execution:
             return True
         return False
 
