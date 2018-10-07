@@ -63,6 +63,9 @@ class Server(object):
 
         logging.info("Fetching workflow metadata: {}".format(workflow_id))
         r = requests.get(url)
+        if r.status_code != 200:
+            logging.error('Error retrieving workflow metadata: {}'.format(r.json()['message']))
+            raise Exception(r.json()['message'])
         logging.debug("Obtained workflow metadata")
         return r.json()
 
