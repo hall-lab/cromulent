@@ -117,7 +117,7 @@ class CromwellCostCalculator(object):
                 shard = e['shardIndex']
                 logging.debug("    Shard: {}".format(shard))
                 if self.is_execution_subworkflow(e):
-                    subworkflow_id = e['subWorkflowId']
+                    subworkflow_id = self.get_subworkflow_id(e)
                     logging.debug("    Entering Subworkflow: {} / {}".format(shard, subworkflow_id))
                     subworkflow_summary_costs = self.alt_calculate_cost(self.get_subworkflow_metadata(e))
                     for task in subworkflow_summary_costs:
