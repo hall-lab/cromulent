@@ -112,7 +112,7 @@ class CromwellCostCalculator(object):
         for task in calls:
             logging.debug("Processing {}".format(task))
             executions = calls[task]
-            task_costs = {}
+            task_costs = defaultdict(int)
             for e in executions:
                 shard = e['shardIndex']
                 logging.debug("    Shard: {}".format(shard))
@@ -134,7 +134,7 @@ class CromwellCostCalculator(object):
                     logging.debug('            operation: {}'.format(op))
                     cost = self.dollars(self.calculator.cost(op))
                     logging.debug('            cost: {}'.format(cost))
-                    task_costs[shard] = cost
+                    task_costs[shard] += cost
 
             if task_costs:
                 total_cost = sum(task_costs.values())
