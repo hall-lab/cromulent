@@ -88,6 +88,12 @@ class CromwellCostCalculator(object):
             meta = self.cromwell_server.get_workflow_metadata(wfid)
             return meta
 
+    def get_subworkflow_id(self, execution):
+        try:
+            return execution['subWorkflowMetadata']['id']
+        except KeyError:
+            return execution['subWorkflowId']
+
     def get_cached_job(self, execution):
         cache = execution["callCaching"]["result"]
         logging.debug("        Cached -- see {}".format(cache))
