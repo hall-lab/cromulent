@@ -44,5 +44,12 @@ def display_workflow_status(wf_id, status):
         color = colored.green
     else:
         color = colored.yellow
-
     print("{} : {}".format(wf_id, color(status)))
+
+def display_workflow_execution_status(wf_id, summary):
+    print("{} :".format(wf_id))
+    print("    {} : {}".format(colored.green('Done'), summary['Done']))
+    print("    {} : {}".format(colored.red('Failed'), summary['Failed']))
+    for status in sorted(summary):
+        if status not in ('Done', 'Failed'):
+            print("    {} : {}".format(colored.yellow(status), summary[status]))

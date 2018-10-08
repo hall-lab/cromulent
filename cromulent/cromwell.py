@@ -2,6 +2,8 @@ import json, logging
 
 import requests
 
+from collections import defaultdict
+
 class Execution(object):
 
     def __init__(self, json):
@@ -82,3 +84,24 @@ class Server(object):
         r = requests.get(url)
         logging.debug("Obtained workflow status")
         return r.json()['status']
+
+    def get_workflow_execution_status(self, workflow_id):
+        base_url = self._get_base_url()
+        url = '/'.join([base_url,
+                        'api',
+                        'workflows',
+                        'v1',
+                        workflow_id,
+                        'metadata?includeKey=executionStatus'])
+
+        logging.debug("Fetching workflow metadata: {}".format(workflow_id))
+        r = requests.get(url)
+        status = r.json()
+        logging.debug("Obtained workflow metadata")
+        summary = defaultdict(int)
+        for call in status['calls']:
+            for task in status['calls']:
+                for execution in status['calls'][task]:
+                    status = execution['executionStatus']
+                    summary[status] += 1
+        return summary
