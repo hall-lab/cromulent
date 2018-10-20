@@ -168,6 +168,10 @@ def execution_status(workflow_id, host, port):
               help='cromwell web server port')
 @click.argument('workflow-id', type=click.STRING)
 def outputs(workflow_id, host, port):
+    server = cromwell.Server(host, port)
+    if not server.is_accessible():
+        msg = "Could not access the cromwell server!  Please ensure it is up!"
+        raise Exception(msg)
     metadata = server.get_workflow_input_outputs(workflow_id)
     pretty_metadata = json.dumps(metadata, indent=4, sort_keys=True)
     print(pretty_metadata)
