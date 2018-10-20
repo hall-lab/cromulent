@@ -85,6 +85,20 @@ class Server(object):
         logging.debug("Obtained workflow status")
         return r.json()['status']
 
+    def abort_workflow(self, workflow_id):
+        base_url = self._get_base_url()
+        url = '/'.join([base_url,
+                        'api',
+                        'workflows',
+                        'v1',
+                        workflow_id,
+                        'abort'])
+
+        logging.debug("Attempting to abort workflow: {}".format(workflow_id))
+        r = requests.post(url)
+        logging.debug("Received server reply")
+        return r.json()
+
     def get_workflow_execution_status(self, workflow_id):
         base_url = self._get_base_url()
         url = '/'.join([base_url,
@@ -105,3 +119,17 @@ class Server(object):
                     status = execution['executionStatus']
                     summary[status] += 1
         return summary
+
+    def get_workflow_input_outputs(self, workflow_id):
+        base_url = self._get_base_url()
+        url = '/'.join([base_url,
+                        'api',
+                        'workflows',
+                        'v1',
+                        workflow_id,
+                        'metadata?includeKey=executionStatus&includeKey=inputs&includeKey=outputs'])
+
+        logging.debug("Fetching workflow metadata: {}".format(workflow_id))
+        r = requests.get(url)
+        logging.debug("Obtained workflow metadata")
+        return r.json()

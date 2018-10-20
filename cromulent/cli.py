@@ -149,9 +149,9 @@ def status(workflow_id, host, port):
 
 @cli.command(name='execution-status', short_help="get workflow execution status")
 @click.option('--host', type=click.STRING, default='localhost',
-              help='cromwell web server host')
+        help='cromwell web server host')
 @click.option('--port', type=click.INT, default=8000,
-              help='cromwell web server port')
+        help='cromwell web server port')
 @click.argument('workflow-id', type=click.STRING)
 def execution_status(workflow_id, host, port):
     server = cromwell.Server(host, port)
@@ -160,6 +160,31 @@ def execution_status(workflow_id, host, port):
         raise Exception(msg)
     status_summary = server.get_workflow_execution_status(workflow_id)
     creport.display_workflow_execution_status(workflow_id, status_summary)
+
+@cli.command(short_help="metadata on inputs, outputs and status")
+@click.option('--host', type=click.STRING, default='localhost',
+              help='cromwell web server host')
+@click.option('--port', type=click.INT, default=8000,
+              help='cromwell web server port')
+@click.argument('workflow-id', type=click.STRING)
+def outputs(workflow_id, host, port):
+    metadata = server.get_workflow_input_outputs(workflow_id)
+    pretty_metadata = json.dumps(metadata, indent=4, sort_keys=True)
+    print(pretty_metadata)
+
+@cli.command(short_help="abort workflow")
+@click.option('--host', type=click.STRING, default='localhost',
+              help='cromwell web server host')
+@click.option('--port', type=click.INT, default=8000,
+              help='cromwell web server port')
+@click.argument('workflow-id', type=click.STRING)
+def abort(workflow_id, host, port):
+    server = cromwell.Server(host, port)
+    if not server.is_accessible():
+        msg = "Could not access the cromwell server!  Please ensure it is up!"
+        raise Exception(msg)
+    status = server.abort_workflow(workflow_id)
+    print(json.dumps(status, indent=4, sort_keys=True))
 
 @cli.command(short_help="Inspect billing via BigQuery")
 def bq():
