@@ -1,8 +1,13 @@
-import json, logging
+from __future__ import division
+
+from pprint import pprint
+import json, logging, math, functools
+from collections import defaultdict
+
+from gcloud import GenomicsOperation, OperationCostCalculator
 
 import requests
 
-from collections import defaultdict
 
 class Execution(object):
 
@@ -104,4 +109,95 @@ class Server(object):
                 for execution in status['calls'][task]:
                     status = execution['executionStatus']
                     summary[status] += 1
+        return summary
+
+
+class CostEstimator(object):
+
+    def __init__(self, cromwell_server, google):
+        self.google = google
+        self.cromwell_server = cromwell_server
+
+    def get_operation_metadata(self, name):
+        return self.google.get_genomics_operation_metadata(name)
+
+    @staticmethod
+    def dollars(raw_cost):
+        return math.ceil(raw_cost * 100) / 100
+
+    def is_execution_subworkflow(self, execution):
+        if 'subWorkflowId' in execution or 'subWorkflowMetadata' in execution:
+            return True
+        return False
+
+    def get_calls(self, metadata):
+        return metadata['calls']
+
+    def get_subworkflow_metadata(self, execution):
+        try:
+            return execution['subWorkflowMetadata']
+        except KeyError:
+            # retrieve subworkflow
+            wfid = execution['subWorkflowId']
+            meta = self.cromwell_server.get_workflow_metadata(wfid)
+            return meta
+
+    def get_subworkflow_id(self, execution):
+        try:
+            return execution['subWorkflowMetadata']['id']
+        except KeyError:
+            return execution['subWorkflowId']
+
+    def get_cached_job(self, execution):
+        cache = execution["callCaching"]["result"]
+        logging.debug("        Cached -- see {}".format(cache))
+        (old_wf_id, old_call_name, old_shard_index) = (cache.split(' '))[2].split(':')
+        old_metadata = self.cromwell_server.get_workflow_metadata(old_wf_id)
+        proper_shard_index = int(old_shard_index)
+        job_id = old_metadata['calls'][old_call_name][proper_shard_index]['jobId']
+        return job_id
+
+    def calculate_cost(self, metadata):
+        calls = self.get_calls(metadata)
+
+        summary = {}
+        subworkflow_summary_costs = {}
+
+        for task in calls:
+            logging.debug("Processing {}".format(task))
+            executions = calls[task]
+            task_costs = defaultdict(int)
+            for e in executions:
+                shard = e['shardIndex']
+                logging.debug("    Shard: {}".format(shard))
+                if self.is_execution_subworkflow(e):
+                    subworkflow_id = self.get_subworkflow_id(e)
+                    logging.debug("    Entering Subworkflow: {} / {}".format(shard, subworkflow_id))
+                    subworkflow_summary_costs = self.calculate_cost(self.get_subworkflow_metadata(e))
+                    for task in subworkflow_summary_costs:
+                        if task in summary:
+                            summary[task]['total-cost'] += subworkflow_summary_costs[task]['total-cost']
+                            summary[task]['items'].extend(subworkflow_summary_costs[task]['items'])
+                        else:
+                            summary[task] = subworkflow_summary_costs[task]
+                else:
+                    job_id = e.get('jobId', None)
+                    if job_id is None:
+                        job_id = self.get_cached_job(e)
+                    op = GenomicsOperation(self.get_operation_metadata(job_id))
+                    logging.debug('            operation: {}'.format(op))
+                    #cost = self.dollars(self.calculator.cost(op))
+                    cost = self.google.estimate_genomics_operation_cost(op)
+                    logging.debug('            cost: {}'.format(cost))
+                    task_costs[shard] += cost
+
+            if task_costs:
+                total_cost = sum(task_costs.values())
+                logging.debug("    Total Task Cost: {}".format(total_cost))
+                if task in summary:
+                    summary[task]['total-cost'] += total_cost
+                    summary[task]['items'].append(task_costs)
+                else:
+                    summary[task] = { 'total-cost': total_cost, 'items' : [task_costs] }
+
         return summary

@@ -30,23 +30,19 @@ def cli():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 # -- Subcommands ---------------------------------------------------------------
-@cli.command(name='price-list',
-             short_help="retrieve pricing info from the Google Cloud API")
-@click.option('--raw', is_flag=True,
-              help='dump the raw compute engine sku prices')
+@cli.command(name='sku-list',
+             short_help="retrieve sku pricing info from the Google Cloud API")
 @click.option('--output', type=click.Path(), default=None,
               help='Path to dump the raw JSON pricing information to')
-def price_list(output, raw):
-    if raw:
-        data = gcloud.get_raw_compute_engine_skus()
-    else:
-        data = calc.generate_gcp_compute_pricelist()
-    pricelist = json.dumps(data, indent=4, sort_keys=True)
+def sku_list(output, raw):
+    google = gcloud.GoogleServices()
+    data = google.compute_engine_skus()
+    skulist = json.dumps(data, indent=4, sort_keys=True)
     if output:
         with open(output, 'w') as f:
-            print(pricelist, file=f)
+            print(skulist, file=f)
     else:
-        print(pricelist)
+        print(skulist)
 
 @cli.command(short_help='retrieve metadata for workflow-id')
 @click.option('--output', type=click.Path(), default=None,
@@ -75,8 +71,8 @@ def metadata(workflow_id, output, host, port):
 @click.option('--metadata', type=click.Path(exists=True), default=None,
               help=('Path to an existing (not-raw) '
                     'cromwell workflow metadata json file.'))
-@click.option('--price-list', type=click.Path(exists=True), default=None,
-              help='Path to an existing pricelist json file.')
+@click.option('--sku-list', type=click.Path(exists=True), default=None,
+              help='Path to an existing sku pricing info json file.')
 @click.option('--import-raw-cost-data', type=click.Path(exists=True),
               default=None,
               help='Import prior calculated raw cost data (in JSON format)')
@@ -93,7 +89,7 @@ def metadata(workflow_id, output, host, port):
 @click.option('-v', '--verbose', count=True,
               help='verbosity level')
 def estimate(metadata,
-             price_list,
+             sku_list,
              import_raw_cost_data,
              workflow_id,
              host,
@@ -126,7 +122,7 @@ def estimate(metadata,
     costs = calc.ideal_workflow_cost_alt(
         metadata,
         workflow_id,
-        price_list,
+        sku_list,
         host,
         port
     )
@@ -168,7 +164,7 @@ def bq():
 # -- Helper functions ----------------------------------------------------------
 def _identify_workflow_id(metadata_json):
     wf_id = None
-    with open(metadata, 'r') as f:
+    with open(metadata_json, 'r') as f:
         data = json.load(f)
         wf_id = data['id']
     return wf_id
