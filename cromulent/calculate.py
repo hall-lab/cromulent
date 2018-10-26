@@ -38,9 +38,9 @@ def ideal_workflow_cost_alt(metadata_path=None,
         raise Exception(msg)
 
     # setup the google services and skus information
-    gcloud.GoogleSerivces.get_machine_types = \
-        memoize(gcloud.GoogleServices.get_compute_machine_types)
-    google = GoogleServices(sku_path)
+    gcloud.GoogleServices.get_machine_types = \
+        memoize(gcloud.GoogleServices.get_available_compute_types)
+    google = gcloud.GoogleServices(sku_path)
 
     # derive the metadata
     metadata = None

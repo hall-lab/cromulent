@@ -4,7 +4,7 @@ from pprint import pprint
 import json, logging, math, functools
 from collections import defaultdict
 
-from gcloud import GenomicsOperation, OperationCostCalculator
+from gcloud import GenomicsOperation
 
 import requests
 

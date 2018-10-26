@@ -105,7 +105,6 @@ def estimate(metadata,
     }
 
     report_fn = reporter[report]
-
     # go straight to the report generation
     if import_raw_cost_data:
         with open(import_raw_cost_data, 'r') as f:

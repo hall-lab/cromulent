@@ -1,12 +1,13 @@
 from __future__ import division
 
 import dateutil.parser
-import math, os, sys
+import math, os, sys, json
 import logging
 from collections import namedtuple
 
 from googleapiclient import discovery
 import google.auth
+import requests
 
 class Resource(object):
 
@@ -22,20 +23,32 @@ class Resource(object):
 
         return self.duration
 
+    def is_multi_tiered_pricing(self, sku):
+        tiered_rates = (sku['pricingInfo'][0]
+                           ['pricingExpression']
+                           ['tieredRates'])
+        bool = True if len(tiered_rates) >= 2 else False
+        return bool
+
     def get_unit_price(self, sku):
-        # TODO:  handle the multiple tired rate case
-        # first-pass -- NOT handling multiple tiered rates at the moment
-        return int(sku['pricingInfo']['pricingExpression']['tieredRates'][0]['unitPrice']['nanos'])
+        # simple case -- single tiered rates
+        return int(sku['pricingInfo'][0]
+                      ['pricingExpression']
+                      ['tieredRates'][0]
+                      ['unitPrice']
+                      ['nanos'])
 
     def get_base_unit_conversion_factor(self, sku):
-        return float(sku['pricingInfo']['pricingExpression']['baseUnitConversionFactor'])
+        return float(sku['pricingInfo'][0]
+                        ['pricingExpression']
+                        ['baseUnitConversionFactor'])
 
 class Disk(Resource):
 
-    def __init__(self, size, duration=duration, disk_type='pd-standard'):
+    def __init__(self, size, duration, disk_type='pd-standard'):
         self.size = size # in gb
         self.type_ = disk_type
-        super(Resource, self).__init__(**kwargs)
+        super(Disk, self).__init__(duration=duration)
 
     def disk_label(self):
         return self.type_
@@ -59,12 +72,15 @@ class Disk(Resource):
 
 class Cpu(Resource):
 
-    def __init__(self, cores, duration=duration):
-        self.cores = cores
-        super(Resource, self).__init__(**kwargs)
+    def __init__(self, cores, duration):
+        self.cores = int(cores)
+        super(Cpu, self).__init__(duration=duration)
 
     # All cpu charges are prorated on seconds with min being 60 secs
-    def compute_nano_dollars(sku):
+    def compute_nano_dollars(self, sku):
+        if self.is_multi_tiered_pricing(sku):
+            sys.exit("[err] Please implement multi-tiered pricing for cpus!")
+
         base_price = self.get_base_price(sku) # nano dollars / (second)
         seconds = self.google_pricing_duration()
         base_unit_usage = seconds
@@ -80,13 +96,15 @@ class Cpu(Resource):
 
 class Ram(Resource):
 
-    def __init__(self, size, duration=duration):
+    def __init__(self, size, duration):
         self.size = size # in gb
-        self.type_ = disk_type
-        super(Resource, self).__init__(**kwargs)
+        super(Ram, self).__init__(duration=duration)
 
     # All memory charges are prorated on seconds with min being 60 secs
-    def compute_nano_dollars(sku):
+    def compute_nano_dollars(self, sku):
+        if self.is_multi_tiered_pricing(sku):
+            sys.exit("[err] Please implement multi-tiered pricing for memory!")
+
         base_price = self.get_base_price(sku) # nano dollars / (second)
         bytes_ = self.size * 1024.0 * 1024.0 * 1024.0
         seconds = self.google_pricing_duration()
@@ -127,13 +145,15 @@ class GenomicsOperation(object):
 
         # setup the cpu and ram components
         _, cpus, mem_mb = self.machine.split('-')
-        mem_gb = mem_mb / 1024.0
+        mem_gb = float(mem_mb) / 1024.0
         self.cpu = Cpu(cores=cpus, duration=time_elapsed)
-        self.ram = Ram(size=mem_gb, duration=self.time_elapsed)
+        self.ram = Ram(size=mem_gb, duration=time_elapsed)
 
         # setup the disk components
-        self.disks = [ Disk(x['sizeGb'], x['type'], duration=time_elapsed)
-                       for x in vm['disks'] ]
+        self.disks = [ Disk(size=x['sizeGb'],
+                            disk_type=x['type'],
+                            duration=time_elapsed) for x in vm['disks'] ]
+
         self.disks.append(Disk(vm['bootDiskSizeGb'], duration=time_elapsed))
 
     def duration(self):
@@ -259,7 +279,6 @@ class GoogleServices(object):
         for disk in operation.disks:
             disk_sku = self.identify_google_disk_sku(disk)
             disk_cost += disk.compute_nano_dollars(disk_sku)
-        disk_usage = operation.get_disk_resource()
 
         return core_cost + mem_cost + disk_cost
 
@@ -290,6 +309,9 @@ class GoogleServices(object):
         else:
             proper_sku_name = '{} {}'.format(compute_class, resource_type)
 
+        if proper_sku_name not in self.sku_list:
+            sys.exit("[err] Didn't find '{}' in google sku list!".format(proper_sku_name))
+
         return self.sku_list[proper_sku_name]
 
     def identify_google_compute_formal_region(self, operation):
@@ -298,7 +320,7 @@ class GoogleServices(object):
         region, _ = operation.zone.rsplit('-', 1)
 
         formal_region = None
-        if region in self.formal_region_name:
+        if region in formal_region_names:
             formal_region = formal_region_names[region]
         else:
             super_region, _ = region.split('-')
@@ -334,6 +356,7 @@ class GoogleServices(object):
             'g1-small': 'Small instance with 1 VCPU',
             'custom': 'Custom instance'
         }
+        return resource_classes
 
     def google_alternative_region_names(self):
         region_formal_name = {
@@ -341,15 +364,17 @@ class GoogleServices(object):
             'us-east4': 'Virginia',
             'us': 'Americas'
         }
+        return region_formal_name
 
     def google_disk_classes(self):
         disk_classes = {
             'pd-ssd' : 'SSD backed PD Capacity',     # aka SSD provisioned space
             'pd-standard' : 'Storage PD Capacity',   # aka Standard provisioned space
         }
+        return disk_classes
 
     def get_available_compute_types(self, zone, project):
-        response = self.compute.machineTypes() \
+        request = self.compute.machineTypes() \
                                .list(project=project, zone=zone)
 
         # assemble the relevant machines into a better format
