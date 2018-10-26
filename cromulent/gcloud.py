@@ -53,18 +53,39 @@ class Disk(Resource):
     def disk_label(self):
         return self.type_
 
+    def get_unit_prices(self, sku):
+        # multi-tiered rate case
+        tiered_rates = (sku['pricingInfo'][0]
+                           ['pricingExpression']
+                           ['tieredRates'])
+
+        return tiered_rates
+
     # All disk-related charges are prorated on seconds
-    def compute_nano_dollars(sku):
-        base_price = self.get_base_price(sku) # nano dollars / (byte * second)
-        bytes_ = self.size * 1024.0 * 1024.0 * 1024.0
-        seconds = self.duration
-        base_unit_usage = bytes_ * seconds
-        nano_dollars = base_unit_usage * base_price
+    def compute_nano_dollars(self, sku):
+        tiered_unit_prices = self.get_unit_prices(sku)
+
+        relevant_tiers = [ x for x in tiered_unit_prices
+                             if x['startUsageAmount'] < self.size ]
+        relevant_tiers.reverse()
+
+        total_cost = 0.0
+        disk_usage = self.size
+        for tier in relevant_tiers:
+            tier_disk_usage_amount = disk_usage - tier['startUsageAmount'] # in gb
+            bytes_ = tier_disk_usage_amount * 1024.0 * 1024.0 * 1024.0
+            unit_price = tier['unitPrice']['nanos']
+            base_price = self.get_base_price(unit_price, sku) # nano dollars / (byte * second)
+            seconds = self.duration
+            base_unit_usage = bytes_ * seconds
+            nano_dollars = base_unit_usage * base_price
+            total_cost += nano_dollars
+            disk_usage = tier['startUsageAmount']
+
         return nano_dollars
 
-    def get_base_price(self, sku):
+    def get_base_price(self, unit_price, sku):
         # unit price is in nano dollars / (GiB * month)
-        unit_price = self.get_unit_price(sku)
         # base price is in nano dollars / (byte * second)
         base_price = unit_price / self.get_base_unit_conversion_factor(sku)
         return base_price
