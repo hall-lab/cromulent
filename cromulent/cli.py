@@ -5,9 +5,10 @@ import signal, sys, os, json, logging
 import click
 
 from cromulent.version import __version__
+
 import cromulent.cromwell as cromwell
-import cromulent.calculate as calc
 import cromulent.gcloud as gcloud
+import cromulent.utils as utils
 import cromulent.report as creport
 
 logging.basicConfig(
@@ -118,7 +119,7 @@ def estimate(metadata,
                   "'--metadata' or '--workflow-id' option!"))
 
     wf_id = _identify_workflow_id(metadata) if metadata else workflow_id
-    costs = calc.ideal_workflow_cost_alt(
+    costs = estimate_workflow_cost(
         metadata,
         workflow_id,
         sku_list,
@@ -184,3 +185,50 @@ def _enable_third_party_module_logs(level):
     # re-enable the loggers from the other third-party modules
     for name in logging.Logger.manager.loggerDict.keys():
         logging.getLogger(name).setLevel(level)
+
+def estimate_workflow_cost(metadata_path=None,
+                           workflow_id=None,
+                           sku_path=None,
+                           host='localhost',
+                           port=8000):
+    # setup the server object
+    # decorate the cromwell.Server class function
+    cromwell.Server.get_workflow_metadata = \
+        utils.memoize(cromwell.Server.get_workflow_metadata)
+    server = cromwell.Server(host, port)
+
+    logging.info("Checking if we have access to the cromwell server")
+    if not server.is_accessible():
+        msg = "Could not access the cromwell server!  Please ensure it is up!"
+        logging.error(msg)
+        raise Exception(msg)
+
+    # setup the google services and skus information
+    gcloud.GoogleServices.get_available_compute_types = \
+        utils.memoize(gcloud.GoogleServices.get_available_compute_types)
+    google = gcloud.GoogleServices(sku_path)
+
+    # derive the metadata
+    metadata = None
+    if metadata_path:
+        msg = "Loading the workflow metadata from : {}".format(metadata_path)
+        logging.info(msg)
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+    else:
+        logging.info("Fetching metadata from cromwell")
+        metadata = server.get_workflow_metadata(workflow_id)
+        logging.info("Fetched metadata from cromwell")
+
+    if metadata is None:
+        msg = "Could not derive workflow metadata"
+        logger.error(msg)
+        raise Exception(msg)
+
+    # perform the calculations
+    estimator = cromwell.CostEstimator(server, google)
+    logging.info("Starting cost calculations")
+    cost = estimator.calculate_cost(metadata)
+    logging.info("Finished cost calculations")
+
+    return cost
