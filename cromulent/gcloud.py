@@ -65,24 +65,31 @@ class Disk(Resource):
     def compute_nano_dollars(self, sku):
         tiered_unit_prices = self.get_unit_prices(sku)
 
+        seconds = self.duration
+        months = seconds / 60.0 / 60.0 / 24.0 / 30.0
+        unit_disk_usage = self.size * months # in gb * month
+
         relevant_tiers = [ x for x in tiered_unit_prices
-                             if x['startUsageAmount'] < self.size ]
+                             if x['startUsageAmount'] < unit_disk_usage ]
         relevant_tiers.reverse()
 
         total_cost = 0.0
-        disk_usage = self.size
         for tier in relevant_tiers:
-            tier_disk_usage_amount = disk_usage - tier['startUsageAmount'] # in gb
-            bytes_ = tier_disk_usage_amount * 1024.0 * 1024.0 * 1024.0
+            tier_unit_disk_usage_amount = unit_disk_usage - tier['startUsageAmount'] # in gb * month
+            base_disk_usage = self.get_base_units(tier_unit_disk_usage_amount, sku)
             unit_price = tier['unitPrice']['nanos']
             base_price = self.get_base_price(unit_price, sku) # nano dollars / (byte * second)
-            seconds = self.duration
-            base_unit_usage = bytes_ * seconds
-            nano_dollars = base_unit_usage * base_price
+            nano_dollars = base_disk_usage * base_price
             total_cost += nano_dollars
-            disk_usage = tier['startUsageAmount']
+            unit_disk_usage = tier['startUsageAmount']
 
         return total_cost
+
+    def get_base_units(self, unit_usage, sku):
+        # unit usage is in (GiB * month)
+        # base usage is in (byte * second)
+        base_units = unit_usage * self.get_base_unit_conversion_factor(sku)
+        return base_units
 
     def get_base_price(self, unit_price, sku):
         # unit price is in nano dollars / (GiB * month)
