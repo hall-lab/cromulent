@@ -22,11 +22,19 @@ A [cromulent][0] (_[watch][3]_) assistant for [cromwell workflows][1] run on the
 
 ## Installation
 
-    pip install https://github.com/ernfrid/cromulent
+    pip install https://github.com/hall-lab/cromulent
 
 Additionally, you may need to authorize application default credentials via `gcloud` before running cromulent
 
     gcloud auth application-default login
+
+### Installation for Developing on `cromulent`
+
+    gcloud auth application-default login
+    git clone https://github.com/hall-lab/cromulent
+    virtualenv venv
+    source venv/bin/activate
+    pip install -e .
 
 ## Usage
 
@@ -34,21 +42,21 @@ The main interface is the `cromulent` terminal command.  It has a git-like sub-c
 
 Try typing `cromulent --help` on the command line and see what options are available.
 
-
     Usage: cromulent [OPTIONS] COMMAND [ARGS]...
     
-      A collection of cromwell helpers to estimate cloud costs
+      A collection of cromwell helpers.
     
     Options:
       --version   Show the version and exit.
       -h, --help  Show this message and exit.
     
     Commands:
-      bq          Inspect billing via BigQuery
-      estimate    estimate ideal workflow cost
-      metadata    retrieve metadata for workflow-id
-      price-list  retrieve pricing info from the Google Cloud API
-      status      get workflow status
+      bq                Inspect billing via BigQuery
+      estimate          estimate ideal workflow cost
+      execution-status  get workflow execution status
+      metadata          retrieve metadata for workflow-id
+      sku-list          retrieve sku pricing info from the Google Cloud API
+      status            get workflow status
 
 Each subcommand will have it own set of options.  Try `cromulent <subcommand> --help` for more details on each subcommand.
 
