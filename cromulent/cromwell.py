@@ -2,7 +2,6 @@ from __future__ import division
 
 from pprint import pprint
 import json, logging, math, functools
-from collections import defaultdict
 
 from gcloud import GenomicsOperation
 
@@ -103,12 +102,15 @@ class Server(object):
         r = requests.get(url)
         status = r.json()
         logging.debug("Obtained workflow metadata")
-        summary = defaultdict(int)
+        summary = {}
         for call in status['calls']:
             for task in status['calls']:
                 for execution in status['calls'][task]:
-                    status = execution['executionStatus']
-                    summary[status] += 1
+                    state = execution['executionStatus']
+                    if state in summary:
+                        summary[state] += 1
+                    else:
+                        summary[state] = 1
         return summary
 
 

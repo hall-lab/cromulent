@@ -78,8 +78,8 @@ def display_workflow_status(wf_id, status):
 
 def display_workflow_execution_status(wf_id, summary):
     print("{} :".format(wf_id))
-    print("    {} : {}".format(colored.green('Done'), summary['Done']))
-    print("    {} : {}".format(colored.red('Failed'), summary['Failed']))
+    print("    {} : {}".format(colored.green('Done'), summary.get('Done', 0)))
+    print("    {} : {}".format(colored.red('Failed'), summary.get('Failed', 0)))
     for status in sorted(summary):
         if status not in ('Done', 'Failed'):
             print("    {} : {}".format(colored.yellow(status), summary[status]))
