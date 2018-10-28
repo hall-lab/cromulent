@@ -166,7 +166,7 @@ class CostEstimator(object):
         for task in calls:
             logging.debug("Processing {}".format(task))
             executions = calls[task]
-            task_costs = defaultdict(int)
+            task_costs = None
             for e in executions:
                 shard = e['shardIndex']
                 logging.debug("    Shard: {}".format(shard))
@@ -176,6 +176,9 @@ class CostEstimator(object):
                     subworkflow_summary_costs = self.calculate_cost(self.get_subworkflow_metadata(e))
                     for task in subworkflow_summary_costs:
                         if task in summary:
+                            summary[task]['cpu'] += subworkflow_summary_costs[task]['cpu']
+                            summary[task]['mem'] += subworkflow_summary_costs[task]['mem']
+                            summary[task]['disk'] += subworkflow_summary_costs[task]['disk']
                             summary[task]['total-cost'] += subworkflow_summary_costs[task]['total-cost']
                             summary[task]['items'].extend(subworkflow_summary_costs[task]['items'])
                         else:
@@ -186,18 +189,38 @@ class CostEstimator(object):
                         job_id = self.get_cached_job(e)
                     op = GenomicsOperation(self.get_operation_metadata(job_id))
                     logging.debug('            operation: {}'.format(op))
-                    #cost = self.dollars(self.calculator.cost(op))
                     cost = self.google.estimate_genomics_operation_cost(op)
                     logging.debug('            cost: {}'.format(cost))
-                    task_costs[shard] += cost
+
+                    if task_costs is None:
+                        task_costs = {}
+
+                    if shard not in task_costs:
+                        task_costs[shard] = {'cpu': 0.0, 'mem': 0.0, 'disk': 0.0}
+
+                    task_costs[shard]['cpu']  += cost['cpu']
+                    task_costs[shard]['mem']  += cost['mem']
+                    task_costs[shard]['disk'] += cost['disk']
 
             if task_costs:
-                total_cost = sum(task_costs.values())
+                cpu_costs  = sum([c['cpu'] for c in task_costs.values()])
+                mem_costs  = sum([c['mem'] for c in task_costs.values()])
+                disk_costs = sum([c['disk'] for c in task_costs.values()])
+                total_cost = cpu_costs + mem_costs + disk_costs
                 logging.debug("    Total Task Cost: {}".format(total_cost))
                 if task in summary:
+                    summary[task]['cpu']  += cpu_costs
+                    summary[task]['mem']  += mem_costs
+                    summary[task]['disk'] += disk_costs
                     summary[task]['total-cost'] += total_cost
                     summary[task]['items'].append(task_costs)
                 else:
-                    summary[task] = { 'total-cost': total_cost, 'items' : [task_costs] }
+                    summary[task] = {
+                        'cpu' : cpu_costs,
+                        'mem' : mem_costs,
+                        'disk' : disk_costs,
+                        'total-cost': total_cost,
+                        'items' : [task_costs]
+                    }
 
         return summary

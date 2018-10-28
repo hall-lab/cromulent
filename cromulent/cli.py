@@ -87,6 +87,8 @@ def metadata(workflow_id, output, host, port):
 @click.option('--report', type=click.Choice(['standard', 'raw']),
               default='standard',
               help='output report choice')
+@click.option('--nanos', type=click.BOOL, is_flag=True, default=False,
+              help='display costs in nano dollars')
 @click.option('-v', '--verbose', count=True,
               help='verbosity level')
 def estimate(metadata,
@@ -96,16 +98,11 @@ def estimate(metadata,
              host,
              port,
              report,
+             nanos,
              verbose):
     if verbose:
         _setup_logging_level(verbose)
 
-    reporter = {
-        'raw' : creport.raw_cost_report,
-        'standard' : creport.standard_cost_report
-    }
-
-    report_fn = reporter[report]
     # go straight to the report generation
     if import_raw_cost_data:
         with open(import_raw_cost_data, 'r') as f:
@@ -127,7 +124,10 @@ def estimate(metadata,
         port
     )
 
-    report_fn(wf_id, costs)
+    if report == 'raw':
+        creport.raw_cost_report(wf_id, costs)
+    else:
+        creport.standard_cost_report(wf_id, costs, nanos)
 
 @cli.command(short_help="get workflow status")
 @click.option('--host', type=click.STRING, default='localhost',

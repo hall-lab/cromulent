@@ -308,7 +308,7 @@ class GoogleServices(object):
             disk_sku = self.identify_google_disk_sku(disk)
             disk_cost += disk.compute_nano_dollars(disk_sku)
 
-        return core_cost + mem_cost + disk_cost
+        return { 'cpu': core_cost, 'mem': mem_cost, 'disk': disk_cost }
 
     def identify_google_disk_sku(self, disk):
         formal_disk_names = self.google_disk_classes()
