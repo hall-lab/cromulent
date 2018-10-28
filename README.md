@@ -5,9 +5,9 @@ A [cromulent][0] (_[watch][3]_) assistant for [cromwell workflows][1] run on the
 
 ## Features
 
-* Estimate cost of cromwell workflow on Google. (_Doesn't include network egress or sustained usage discounts. Not all resource types included._)
+* Estimate cost of a cromwell workflow. (_Doesn't include network egress or sustained usage discounts. Not all resource types included._)
     
-    Resource usage is calculated by querying the genomics api using operations ids present in the cromwell metadata. The idea is based on comments made [in the GATK Forum][4]. 
+    Cost is calculated by pricing the cpu, memory and disk usage of each [Google Genomics Operation][7] present in the cromwell metadata. The idea is based on comments made [in the GATK Forum][4].
 
 * Quickly get workflow statuses
 * Easily retrive current Google Compute Engine &amp; Persistent Disk Costs via the [Google Cloud Billing API][6]
@@ -69,3 +69,4 @@ Each subcommand will have it own set of options.  Try `cromulent <subcommand> --
 [4]: https://gatkforums.broadinstitute.org/firecloud/discussion/9130/cromwell-polling-interval-is-sometimes-too-long
 [5]: https://cloud.google.com/pubsub/docs/quickstart-cli
 [6]: https://cloud.google.com/billing/docs/apis
+[7]: https://cloud.google.com/genomics/reference/rest/Shared.Types/ListOperationsResponse#Operation
