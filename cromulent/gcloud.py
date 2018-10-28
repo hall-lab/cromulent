@@ -82,7 +82,7 @@ class Disk(Resource):
             total_cost += nano_dollars
             disk_usage = tier['startUsageAmount']
 
-        return nano_dollars
+        return total_cost
 
     def get_base_price(self, unit_price, sku):
         # unit price is in nano dollars / (GiB * month)
