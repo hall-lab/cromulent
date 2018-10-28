@@ -224,25 +224,16 @@ class GoogleServices(object):
     # and https://cloud.google.com/billing/reference/rest/v1/services.skus/list
     # and https://cloud.google.com/compute/pricing#disk
     def __init__(self, sku_path=None):
-        self._ensure_environment()
-        api_key = os.environ['GCP_API_KEY']
 
         credentials, project = google.auth.default()
         self.credentials = credentials
         self.project = project
 
-        self.billing  = discovery.build('cloudbilling', 'v1', developerKey=api_key)
+        self.billing  = discovery.build('cloudbilling', 'v1', credentials=credentials)
         self.compute  = discovery.build('compute', 'v1', credentials=credentials)
         self.genomics = discovery.build('genomics', 'v2alpha1', credentials=credentials)
 
         self.sku_list = self._construct_compute_sku_list(sku_path)
-
-    def _ensure_environment(self):
-        if 'GCP_API_KEY' not in os.environ:
-            msg = ("Please supply the shell environment variable: 'GCP_API_KEY' "
-                   "before running this script!\n"
-                   "(e.g. 'export GCP_API_KEY=\"your api key\"')")
-            sys.exit(msg)
 
     def compute_engine_skus(self):
         return self.sku_list
