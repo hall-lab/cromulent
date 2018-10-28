@@ -10,7 +10,8 @@ A [cromulent][0] (_[watch][3]_) assistant for [cromwell workflows][1] run on the
     Cost is calculated by pricing the cpu, memory and disk usage of each [Google Genomics Operation][7] present in the cromwell metadata. The idea is based on comments made [in the GATK Forum][4].
 
 * Quickly get workflow statuses
-* Easily retrive current Google Compute Engine &amp; Persistent Disk Costs via the [Google Cloud Billing API][6]
+* Easily retrieve current Google Compute Engine &amp; Persistent Disk Costs via the [Google Cloud Billing API][6]
+* Easily retrieve workflow metadata from the cromwell server
 
 
 
