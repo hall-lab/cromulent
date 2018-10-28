@@ -55,7 +55,7 @@ def sku_list(output, raw):
 @click.argument('workflow-id')
 def metadata(workflow_id, output, host, port):
     cromwell.Server.get_workflow_metadata = \
-        calc.memoize(cromwell.Server.get_workflow_metadata)
+        utils.memoize(cromwell.Server.get_workflow_metadata)
     server = cromwell.Server(host, port)
     if not server.is_accessible():
         msg = "Could not access the cromwell server!  Please ensure it is up!"

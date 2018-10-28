@@ -280,7 +280,7 @@ class GoogleServices(object):
                 description = sku['description']
                 service_skus[description] = sku
             if response['nextPageToken']:
-                response = self.billing_api.services().skus().list(parent=service_name, pageToken=response['nextPageToken']).execute()
+                response = self.billing.services().skus().list(parent=service_name, pageToken=response['nextPageToken']).execute()
             else:
                 break
 
