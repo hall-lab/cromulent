@@ -62,6 +62,8 @@ class Disk(Resource):
         return tiered_rates
 
     # All disk-related charges are prorated on seconds
+    # Calculation based on reading:
+    # https://cloud.google.com/billing/reference/rest/v1/services.skus/list#PricingExpression
     def compute_nano_dollars(self, sku):
         tiered_unit_prices = self.get_unit_prices(sku)
 
