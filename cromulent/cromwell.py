@@ -38,6 +38,7 @@ class Metadata(object):
             }
 
 class Server(object):
+
     def __init__(self, host="localhost", port=8000):
         self.host = host
         self.port = port
