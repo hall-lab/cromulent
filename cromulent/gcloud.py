@@ -285,11 +285,12 @@ class GoogleServices(object):
         return response
 
     def estimate_genomics_operation_cost(self, operation):
-        # a genomics operation cost consists of 3 parts/resources:
+        # a genomics operation cost consists of 3 components:
         #    1.  cpu/core usage
         #    2.  memory usage
         #    3.  disk usage
-        # we need to calculate the cost of each resource and then add up the total
+        # we need to calculate and return the cost of each component
+        # in nano dollars (i.e. 1e9 nano dollars == 1 dollar)
         core_sku = self.identify_google_compute_sku(operation, 'Core')
         core_cost  = operation.cpu.compute_nano_dollars(core_sku)
 
