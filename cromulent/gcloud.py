@@ -64,19 +64,39 @@ class Disk(Resource):
     # All disk-related charges are prorated on seconds
     # Calculation based on reading:
     # https://cloud.google.com/billing/reference/rest/v1/services.skus/list#PricingExpression
-    def compute_nano_dollars(self, sku):
-        tiered_unit_prices = self.get_unit_prices(sku)
+    def compute_nano_dollars(self, sku, tier_scheme):
+        cost_methodology = {
+            'all'       : self.cost_all_tier,
+            'no-free'   : self.cost_no_free_tier,
+            'top-tier'  : self.cost_top_tier,
+            'max-price' : self.cost_max_price_tier
+        }
 
+        fn = cost_methodology[tier_scheme]
+        total_cost = fn(sku)
+        return total_cost
+
+    def _compute_unit_disk_usage(self):
         seconds = self.duration
         months = seconds / 60.0 / 60.0 / 24.0 / 30.0
         unit_disk_usage = self.size * months # in gb * month
+        return unit_disk_usage
 
-        relevant_tiers = [ x for x in tiered_unit_prices
-                             if x['startUsageAmount'] < unit_disk_usage ]
-        relevant_tiers.reverse()
+    def _single_tier_cost(self, tier, sku):
+        unit_price = tier['unitPrice']['nanos']
+        base_price = self.get_base_price(unit_price, sku) # nano dollars / (byte * second)
+
+        bytes_ = self.size * 1024.0 * 1024.0 * 1024.0
+        seconds = self.duration
+        base_unit_usage = bytes_ * seconds
+        nano_dollars = base_unit_usage * base_price
+        return nano_dollars
+
+    def _multi_tier_cost(self, initial_disk_usage, tiers, sku):
+        unit_disk_usage = initial_disk_usage
 
         total_cost = 0.0
-        for tier in relevant_tiers:
+        for tier in tiers:
             tier_unit_disk_usage_amount = unit_disk_usage - tier['startUsageAmount'] # in gb * month
             base_disk_usage = self.get_base_units(tier_unit_disk_usage_amount, sku)
             unit_price = tier['unitPrice']['nanos']
@@ -86,6 +106,49 @@ class Disk(Resource):
             unit_disk_usage = tier['startUsageAmount']
 
         return total_cost
+
+    def cost_max_price_tier(self, sku):
+        tiered_unit_prices = self.get_unit_prices(sku)
+        max_tier = max(tiered_unit_prices, key=lambda e: e['unitPrice']['nanos'])
+        nano_dollars = self._single_tier_cost(max_tier, sku)
+        return nano_dollars
+
+    def cost_top_tier(self, sku):
+        tiered_unit_prices = self.get_unit_prices(sku)
+        top_tier = tiered_unit_prices[-1]
+        nano_dollars = self._single_tier_cost(top_tier, sku)
+        return nano_dollars
+
+    def cost_no_free_tier(self, sku):
+        tiered_unit_prices = self.get_unit_prices(sku)
+
+        # if the first tier is "free" set the price of the free tier to the
+        # price of the next higher tier
+        if tiered_unit_prices[0]['unitPrice']['nanos'] == 0:
+            tiered_unit_prices[0]['unitPrice']['nanos'] = \
+                tiered_unit_prices[1]['unitPrice']['nanos']
+
+        unit_disk_usage = self._compute_unit_disk_usage()
+
+        relevant_tiers = [ x for x in tiered_unit_prices
+                             if x['startUsageAmount'] < unit_disk_usage ]
+
+        relevant_tiers.reverse()
+
+        nano_dollars = self._multi_tier_cost(unit_disk_usage, relevant_tiers, sku)
+        return nano_dollars
+
+    def cost_all_tier(self, sku):
+        tiered_unit_prices = self.get_unit_prices(sku)
+        unit_disk_usage = self._compute_unit_disk_usage()
+
+        relevant_tiers = [ x for x in tiered_unit_prices
+                             if x['startUsageAmount'] < unit_disk_usage ]
+
+        relevant_tiers.reverse()
+
+        nano_dollars = self._multi_tier_cost(unit_disk_usage, relevant_tiers, sku)
+        return nano_dollars
 
     def get_base_units(self, unit_usage, sku):
         # unit usage is in (GiB * month)
@@ -284,13 +347,20 @@ class GoogleServices(object):
         response = request.execute()
         return response
 
-    def estimate_genomics_operation_cost(self, operation):
+    def estimate_genomics_operation_cost(self, operation, tier_scheme):
         # a genomics operation cost consists of 3 components:
         #    1.  cpu/core usage
         #    2.  memory usage
         #    3.  disk usage
         # we need to calculate and return the cost of each component
         # in nano dollars (i.e. 1e9 nano dollars == 1 dollar)
+        #
+        # tier_scheme can be on of the following:
+        # 1.  all       -- assume starting workflow in a new project
+        #                  and include all the relevant tiering pricing
+        # 2.  no-free   -- use tiered-pricing, but remove any free-tiers
+        # 3.  top-tier  -- only use the pricing on the last/top tier
+        # 4.  max-price -- use only the tier with the highest price
         core_sku = self.identify_google_compute_sku(operation, 'Core')
         core_cost  = operation.cpu.compute_nano_dollars(core_sku)
 
@@ -300,7 +370,7 @@ class GoogleServices(object):
         disk_cost = 0.0
         for disk in operation.disks:
             disk_sku = self.identify_google_disk_sku(disk)
-            disk_cost += disk.compute_nano_dollars(disk_sku)
+            disk_cost += disk.compute_nano_dollars(disk_sku, tier_scheme)
 
         return { 'cpu': core_cost, 'mem': mem_cost, 'disk': disk_cost }
 

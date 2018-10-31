@@ -130,7 +130,14 @@ class CostEstimator(object):
         job_id = old_metadata['calls'][old_call_name][proper_shard_index]['jobId']
         return job_id
 
-    def calculate_cost(self, metadata):
+    def calculate_cost(self, metadata, tier_scheme='all'):
+        # tier_scheme can be on of the following:
+        # 1.  all       -- assume starting workflow in a new project
+        #                  and include all the relevant tiering pricing
+        # 2.  no-free   -- use tiered-pricing, but remove any free-tiers
+        # 3.  top-tier  -- only use the pricing on the last/top tier
+        # 4.  max-price -- use only the tier with the highest price
+        logging.info("Using price tiering scheme: '{}'".format(tier_scheme))
         calls = self.get_calls(metadata)
 
         summary = {}
@@ -162,7 +169,7 @@ class CostEstimator(object):
                         job_id = self.get_cached_job(e)
                     op = GenomicsOperation(self.get_operation_metadata(job_id))
                     logging.debug('            operation: {}'.format(op))
-                    cost = self.google.estimate_genomics_operation_cost(op)
+                    cost = self.google.estimate_genomics_operation_cost(op, tier_scheme)
                     logging.debug('            cost: {}'.format(cost))
 
                     if task_costs is None:

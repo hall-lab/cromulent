@@ -84,6 +84,10 @@ def metadata(workflow_id, output, host, port):
               help='cromwell web server host')
 @click.option('--port', type=click.INT, default=8000,
               help='cromwell web server port')
+@click.option('--tier-scheme',
+              type=click.Choice(['all', 'no-free', 'top-tier', 'max-price']),
+              default='all',
+              help='tiered pricing handling scheme')
 @click.option('--report', type=click.Choice(['standard', 'raw']),
               default='standard',
               help='output report choice')
@@ -97,6 +101,7 @@ def estimate(metadata,
              workflow_id,
              host,
              port,
+             tier_scheme,
              report,
              nanos,
              verbose):
@@ -121,7 +126,8 @@ def estimate(metadata,
         workflow_id,
         sku_list,
         host,
-        port
+        port,
+        tier_scheme
     )
 
     if report == 'raw':
@@ -190,7 +196,8 @@ def estimate_workflow_cost(metadata_path=None,
                            workflow_id=None,
                            sku_path=None,
                            host='localhost',
-                           port=8000):
+                           port=8000,
+                           tier_scheme='all'):
     # setup the server object
     # decorate the cromwell.Server class function
     cromwell.Server.get_workflow_metadata = \
@@ -228,7 +235,7 @@ def estimate_workflow_cost(metadata_path=None,
     # perform the calculations
     estimator = cromwell.CostEstimator(server, google)
     logging.info("Starting cost calculations")
-    cost = estimator.calculate_cost(metadata)
+    cost = estimator.calculate_cost(metadata, tier_scheme)
     logging.info("Finished cost calculations")
 
     return cost
