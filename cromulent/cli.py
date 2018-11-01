@@ -5,9 +5,10 @@ import signal, sys, os, json, logging
 import click
 
 from cromulent.version import __version__
+
 import cromulent.cromwell as cromwell
-import cromulent.calculate as calc
 import cromulent.gcloud as gcloud
+import cromulent.utils as utils
 import cromulent.report as creport
 
 logging.basicConfig(
@@ -24,29 +25,25 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.version_option(version=__version__)
 def cli():
-    '''A collection of cromwell helpers to estimate cloud costs'''
+    '''A collection of cromwell helpers.'''
     # to make this script/module behave nicely with unix pipes
     # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 # -- Subcommands ---------------------------------------------------------------
-@cli.command(name='price-list',
-             short_help="retrieve pricing info from the Google Cloud API")
-@click.option('--raw', is_flag=True,
-              help='dump the raw compute engine sku prices')
+@cli.command(name='sku-list',
+             short_help="retrieve sku pricing info from the Google Cloud API")
 @click.option('--output', type=click.Path(), default=None,
               help='Path to dump the raw JSON pricing information to')
-def price_list(output, raw):
-    if raw:
-        data = gcloud.get_raw_compute_engine_skus()
-    else:
-        data = calc.generate_gcp_compute_pricelist()
-    pricelist = json.dumps(data, indent=4, sort_keys=True)
+def sku_list(output, raw):
+    google = gcloud.GoogleServices()
+    data = google.compute_engine_skus()
+    skulist = json.dumps(data, indent=4, sort_keys=True)
     if output:
         with open(output, 'w') as f:
-            print(pricelist, file=f)
+            print(skulist, file=f)
     else:
-        print(pricelist)
+        print(skulist)
 
 @cli.command(short_help='retrieve metadata for workflow-id')
 @click.option('--output', type=click.Path(), default=None,
@@ -58,7 +55,7 @@ def price_list(output, raw):
 @click.argument('workflow-id')
 def metadata(workflow_id, output, host, port):
     cromwell.Server.get_workflow_metadata = \
-        calc.memoize(cromwell.Server.get_workflow_metadata)
+        utils.memoize(cromwell.Server.get_workflow_metadata)
     server = cromwell.Server(host, port)
     if not server.is_accessible():
         msg = "Could not access the cromwell server!  Please ensure it is up!"
@@ -75,8 +72,8 @@ def metadata(workflow_id, output, host, port):
 @click.option('--metadata', type=click.Path(exists=True), default=None,
               help=('Path to an existing (not-raw) '
                     'cromwell workflow metadata json file.'))
-@click.option('--price-list', type=click.Path(exists=True), default=None,
-              help='Path to an existing pricelist json file.')
+@click.option('--sku-list', type=click.Path(exists=True), default=None,
+              help='Path to an existing sku pricing info json file.')
 @click.option('--import-raw-cost-data', type=click.Path(exists=True),
               default=None,
               help='Import prior calculated raw cost data (in JSON format)')
@@ -87,28 +84,29 @@ def metadata(workflow_id, output, host, port):
               help='cromwell web server host')
 @click.option('--port', type=click.INT, default=8000,
               help='cromwell web server port')
+@click.option('--tier-scheme',
+              type=click.Choice(['all', 'no-free', 'top-tier', 'max-price']),
+              default='all',
+              help='tiered pricing handling scheme')
 @click.option('--report', type=click.Choice(['standard', 'raw']),
               default='standard',
               help='output report choice')
+@click.option('--nanos', type=click.BOOL, is_flag=True, default=False,
+              help='display costs in nano dollars')
 @click.option('-v', '--verbose', count=True,
               help='verbosity level')
 def estimate(metadata,
-             price_list,
+             sku_list,
              import_raw_cost_data,
              workflow_id,
              host,
              port,
+             tier_scheme,
              report,
+             nanos,
              verbose):
     if verbose:
         _setup_logging_level(verbose)
-
-    reporter = {
-        'raw' : creport.raw_cost_report,
-        'standard' : creport.standard_cost_report
-    }
-
-    report_fn = reporter[report]
 
     # go straight to the report generation
     if import_raw_cost_data:
@@ -123,15 +121,19 @@ def estimate(metadata,
                   "'--metadata' or '--workflow-id' option!"))
 
     wf_id = _identify_workflow_id(metadata) if metadata else workflow_id
-    costs = calc.ideal_workflow_cost_alt(
+    costs = estimate_workflow_cost(
         metadata,
         workflow_id,
-        price_list,
+        sku_list,
         host,
-        port
+        port,
+        tier_scheme
     )
 
-    report_fn(wf_id, costs)
+    if report == 'raw':
+        creport.raw_cost_report(wf_id, costs)
+    else:
+        creport.standard_cost_report(wf_id, costs, nanos)
 
 @cli.command(short_help="get workflow status")
 @click.option('--host', type=click.STRING, default='localhost',
@@ -197,7 +199,7 @@ def bq():
 # -- Helper functions ----------------------------------------------------------
 def _identify_workflow_id(metadata_json):
     wf_id = None
-    with open(metadata, 'r') as f:
+    with open(metadata_json, 'r') as f:
         data = json.load(f)
         wf_id = data['id']
     return wf_id
@@ -218,3 +220,51 @@ def _enable_third_party_module_logs(level):
     # re-enable the loggers from the other third-party modules
     for name in logging.Logger.manager.loggerDict.keys():
         logging.getLogger(name).setLevel(level)
+
+def estimate_workflow_cost(metadata_path=None,
+                           workflow_id=None,
+                           sku_path=None,
+                           host='localhost',
+                           port=8000,
+                           tier_scheme='all'):
+    # setup the server object
+    # decorate the cromwell.Server class function
+    cromwell.Server.get_workflow_metadata = \
+        utils.memoize(cromwell.Server.get_workflow_metadata)
+    server = cromwell.Server(host, port)
+
+    logging.info("Checking if we have access to the cromwell server")
+    if not server.is_accessible():
+        msg = "Could not access the cromwell server!  Please ensure it is up!"
+        logging.error(msg)
+        raise Exception(msg)
+
+    # setup the google services and skus information
+    gcloud.GoogleServices.get_available_compute_types = \
+        utils.memoize(gcloud.GoogleServices.get_available_compute_types)
+    google = gcloud.GoogleServices(sku_path)
+
+    # derive the metadata
+    metadata = None
+    if metadata_path:
+        msg = "Loading the workflow metadata from : {}".format(metadata_path)
+        logging.info(msg)
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+    else:
+        logging.info("Fetching metadata from cromwell")
+        metadata = server.get_workflow_metadata(workflow_id)
+        logging.info("Fetched metadata from cromwell")
+
+    if metadata is None:
+        msg = "Could not derive workflow metadata"
+        logger.error(msg)
+        raise Exception(msg)
+
+    # perform the calculations
+    estimator = cromwell.CostEstimator(server, google)
+    logging.info("Starting cost calculations")
+    cost = estimator.calculate_cost(metadata, tier_scheme)
+    logging.info("Finished cost calculations")
+
+    return cost

@@ -1,39 +1,14 @@
-import json, logging
+from __future__ import division
+
+from pprint import pprint
+import json, logging, math, functools
+
+from gcloud import GenomicsOperation
 
 import requests
 
-from collections import defaultdict
-
-class Execution(object):
-
-    def __init__(self, json):
-        self.json = json
-
-    def status(self):
-        return self.json['executionStatus']
-
-    def shard(self):
-        return self.json['shardIndex']
-
-    def jobid(self):
-        return self.json.get('jobId', None)
-
-    def __str__(self):
-        return json.dumps(self.json, sort_keys=True, indent=4, separators=(',', ': '))
-
-
-class Metadata(object):
-
-    def __init__(self, metadata):
-        self.json_doc = metadata
-
-    def calls(self):
-        return {
-            k: [Execution(x) for x in v]
-            for k, v in self.json_doc['calls'].iteritems()
-            }
-
 class Server(object):
+
     def __init__(self, host="localhost", port=8000):
         self.host = host
         self.port = port
@@ -112,12 +87,136 @@ class Server(object):
         r = requests.get(url)
         status = r.json()
         logging.debug("Obtained workflow metadata")
-        summary = defaultdict(int)
+        summary = {}
         for call in status['calls']:
             for task in status['calls']:
                 for execution in status['calls'][task]:
-                    status = execution['executionStatus']
-                    summary[status] += 1
+                    state = execution['executionStatus']
+                    if state in summary:
+                        summary[state] += 1
+                    else:
+                        summary[state] = 1
+        return summary
+
+
+class CostEstimator(object):
+
+    def __init__(self, cromwell_server, google):
+        self.google = google
+        self.cromwell_server = cromwell_server
+
+    def get_operation_metadata(self, name):
+        return self.google.get_genomics_operation_metadata(name)
+
+    @staticmethod
+    def dollars(raw_cost):
+        return math.ceil(raw_cost * 100) / 100
+
+    def is_execution_subworkflow(self, execution):
+        if 'subWorkflowId' in execution or 'subWorkflowMetadata' in execution:
+            return True
+        return False
+
+    def get_calls(self, metadata):
+        return metadata['calls']
+
+    def get_subworkflow_metadata(self, execution):
+        try:
+            return execution['subWorkflowMetadata']
+        except KeyError:
+            # retrieve subworkflow
+            wfid = execution['subWorkflowId']
+            meta = self.cromwell_server.get_workflow_metadata(wfid)
+            return meta
+
+    def get_subworkflow_id(self, execution):
+        try:
+            return execution['subWorkflowMetadata']['id']
+        except KeyError:
+            return execution['subWorkflowId']
+
+    def get_cached_job(self, execution):
+        cache = execution["callCaching"]["result"]
+        logging.debug("        Cached -- see {}".format(cache))
+        (old_wf_id, old_call_name, old_shard_index) = (cache.split(' '))[2].split(':')
+        old_metadata = self.cromwell_server.get_workflow_metadata(old_wf_id)
+        proper_shard_index = int(old_shard_index)
+        job_id = old_metadata['calls'][old_call_name][proper_shard_index]['jobId']
+        return job_id
+
+    def calculate_cost(self, metadata, tier_scheme='all'):
+        # tier_scheme can be on of the following:
+        # 1.  all       -- assume starting workflow in a new project
+        #                  and include all the relevant tiering pricing
+        # 2.  no-free   -- use tiered-pricing, but remove any free-tiers
+        # 3.  top-tier  -- only use the pricing on the last/top tier
+        # 4.  max-price -- use only the tier with the highest price
+        logging.info("Using price tiering scheme: '{}'".format(tier_scheme))
+        calls = self.get_calls(metadata)
+
+        summary = {}
+        subworkflow_summary_costs = {}
+
+        for task in calls:
+            logging.debug("Processing {}".format(task))
+            executions = calls[task]
+            task_costs = None
+            for e in executions:
+                shard = e['shardIndex']
+                logging.debug("    Shard: {}".format(shard))
+                if self.is_execution_subworkflow(e):
+                    subworkflow_id = self.get_subworkflow_id(e)
+                    logging.debug("    Entering Subworkflow: {} / {}".format(shard, subworkflow_id))
+                    subworkflow_summary_costs = self.calculate_cost(self.get_subworkflow_metadata(e))
+                    for task in subworkflow_summary_costs:
+                        if task in summary:
+                            summary[task]['cpu'] += subworkflow_summary_costs[task]['cpu']
+                            summary[task]['mem'] += subworkflow_summary_costs[task]['mem']
+                            summary[task]['disk'] += subworkflow_summary_costs[task]['disk']
+                            summary[task]['total-cost'] += subworkflow_summary_costs[task]['total-cost']
+                            summary[task]['items'].extend(subworkflow_summary_costs[task]['items'])
+                        else:
+                            summary[task] = subworkflow_summary_costs[task]
+                else:
+                    job_id = e.get('jobId', None)
+                    if job_id is None:
+                        job_id = self.get_cached_job(e)
+                    op = GenomicsOperation(self.get_operation_metadata(job_id))
+                    logging.debug('            operation: {}'.format(op))
+                    cost = self.google.estimate_genomics_operation_cost(op, tier_scheme)
+                    logging.debug('            cost: {}'.format(cost))
+
+                    if task_costs is None:
+                        task_costs = {}
+
+                    if shard not in task_costs:
+                        task_costs[shard] = {'cpu': 0.0, 'mem': 0.0, 'disk': 0.0}
+
+                    task_costs[shard]['cpu']  += cost['cpu']
+                    task_costs[shard]['mem']  += cost['mem']
+                    task_costs[shard]['disk'] += cost['disk']
+
+            if task_costs:
+                cpu_costs  = sum([c['cpu'] for c in task_costs.values()])
+                mem_costs  = sum([c['mem'] for c in task_costs.values()])
+                disk_costs = sum([c['disk'] for c in task_costs.values()])
+                total_cost = cpu_costs + mem_costs + disk_costs
+                logging.debug("    Total Task Cost: {}".format(total_cost))
+                if task in summary:
+                    summary[task]['cpu']  += cpu_costs
+                    summary[task]['mem']  += mem_costs
+                    summary[task]['disk'] += disk_costs
+                    summary[task]['total-cost'] += total_cost
+                    summary[task]['items'].append(task_costs)
+                else:
+                    summary[task] = {
+                        'cpu' : cpu_costs,
+                        'mem' : mem_costs,
+                        'disk' : disk_costs,
+                        'total-cost': total_cost,
+                        'items' : [task_costs]
+                    }
+
         return summary
 
     def get_workflow_input_outputs(self, workflow_id):
