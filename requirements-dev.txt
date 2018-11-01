@@ -1,6 +1,7 @@
 click
 clint
 google-api-python-client
+google-auth
 python-dateutil
 requests
 tabulate
