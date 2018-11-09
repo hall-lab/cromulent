@@ -33,6 +33,7 @@ Additionally, you may need to authorize application default credentials via `gcl
 
     gcloud auth application-default login
     git clone https://github.com/hall-lab/cromulent
+    cd cromulent
     virtualenv venv
     source venv/bin/activate
     pip install -e .
