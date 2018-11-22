@@ -98,6 +98,19 @@ class Server(object):
                         summary[state] = 1
         return summary
 
+    def get_workflow_input_outputs(self, workflow_id):
+        base_url = self._get_base_url()
+        url = '/'.join([base_url,
+                        'api',
+                        'workflows',
+                        'v1',
+                        workflow_id,
+                        'metadata?includeKey=executionStatus&includeKey=inputs&includeKey=outputs'])
+
+        logging.debug("Fetching workflow metadata: {}".format(workflow_id))
+        r = requests.get(url)
+        logging.debug("Obtained workflow metadata")
+        return r.json()
 
 class CostEstimator(object):
 
@@ -218,17 +231,3 @@ class CostEstimator(object):
                     }
 
         return summary
-
-    def get_workflow_input_outputs(self, workflow_id):
-        base_url = self._get_base_url()
-        url = '/'.join([base_url,
-                        'api',
-                        'workflows',
-                        'v1',
-                        workflow_id,
-                        'metadata?includeKey=executionStatus&includeKey=inputs&includeKey=outputs'])
-
-        logging.debug("Fetching workflow metadata: {}".format(workflow_id))
-        r = requests.get(url)
-        logging.debug("Obtained workflow metadata")
-        return r.json()
