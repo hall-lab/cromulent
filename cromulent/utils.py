@@ -11,3 +11,16 @@ def memoize(func):
         return cache[key]
 
     return memoized_func
+
+def parse_wf_report_opts(opts=None):
+    if opts is None:
+        return {}
+
+    opts_params = opts.split(';')
+    params = {}
+
+    for o in opts_params:
+        (k, v) = o.split('=')
+        params[k] = v
+
+    return params

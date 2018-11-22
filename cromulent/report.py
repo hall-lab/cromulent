@@ -3,11 +3,13 @@ from pprint import pprint
 from functools import partial
 import json
 
+import cromulent.utils as utils
+
 from clint.textui import puts, indent, colored
 from tabulate import tabulate
-from cytoolz.itertoolz import frequencies
+from cytoolz.itertoolz import frequencies, take
 from cytoolz.curried import pipe, map, filter, get
-from cytoolz.dicttoolz import merge, valmap
+from cytoolz.dicttoolz import merge, valmap, get_in
 
 def standard_cost_report(wf_id, json_costs, display_nano_dollars):
     units = partial(dollar_units, display_nano_dollars)
@@ -87,10 +89,19 @@ def display_workflow_execution_status(wf_id, summary):
         if status not in ('Done', 'Failed'):
             print("    {} : {}".format(colored.yellow(status), summary[status]))
 
-def workflow_report(report, metadata):
+def workflow_report_types():
+    dispatch = workflow_report_dispatcher()
+    return dispatch.keys()
+
+def workflow_report_dispatcher():
     dispatch = {
         'summary' : wf_summary,
+        'failures': wf_failures,
     }
+    return dispatch
+
+def workflow_report(report, metadata, opts):
+    dispatch = workflow_report_dispatcher()
 
     if report not in dispatch:
         msg = "Workflow report '{}' is not implemented!".format(report)
@@ -98,9 +109,9 @@ def workflow_report(report, metadata):
         raise Exception(msg)
 
     fn = dispatch[report]
-    fn(metadata)
+    fn(metadata, opts)
 
-def wf_summary(metadata):
+def wf_summary(metadata, opts):
     overall_wf_attributes = (
         'id', 'status',
         'workflowName', 'workflowRoot',
@@ -151,6 +162,91 @@ def _get_wf_call_statuses(metadata):
 
     final_stats = valmap(lambda d: merge(base_states, d), call_stats)
     return (calls, sorted(states), final_stats)
+
+def wf_failures(metadata, opts):
+    extra_opts = utils.parse_wf_report_opts(opts)
+
+    fails = _get_wf_call_failures(metadata, extra_opts)
+
+    if 'detail' in extra_opts:
+        _generate_detail_wf_failure_report(fails, extra_opts)
+    else:
+        _generate_basic_wf_failure_report(fails, extra_opts)
+
+def _generate_detail_wf_failure_report(fails, opts):
+    for call in fails:
+        for f in fails[call]:
+            header = 'call: {} | shard: {} | jobId: {} | rc: {}'
+            header = header.format(call, f['shard'], f['jobId'], f['rc'])
+
+            puts()
+            puts(colored.red(header))
+            with indent(4, quote=''):
+                puts(colored.yellow("--- Error Message: ---"))
+                puts()
+                with indent(2, quote='| '):
+                    err_msg = f['err_msg']
+                    puts(err_msg)
+                puts()
+                puts(colored.blue("--- Inputs: ---"))
+                puts()
+                with indent(2, quote=''):
+                    inputs = json.dumps(f['inputs'], indent=4, sort_keys=True)
+                    puts(inputs)
+                puts()
+                puts(colored.green("--- stderr: ---"))
+                puts()
+                with indent(2, quote=''):
+                    puts(f['stderr'])
+                puts()
+                puts(colored.green("--- jes: ---"))
+                puts()
+                with indent(2, quote=''):
+                    inputs = json.dumps(f['jes'], indent=4, sort_keys=True)
+                    puts(inputs)
+                puts()
+                puts(colored.green("--- runtime: ---"))
+                puts()
+                with indent(2, quote=''):
+                    inputs = json.dumps(f['runtime'], indent=4, sort_keys=True)
+                    puts(inputs)
+            puts()
+
+def _generate_basic_wf_failure_report(fails, opts):
+    headers = ['call', 'shard', 'jobId', 'rc', 'stderr']
+    table = []
+    for call in fails:
+        for f in fails[call]:
+            row = [ call, f['shard'], f['jobId'], f['rc'], f['stderr'] ]
+            table.append(row)
+
+    puts('')
+    print(tabulate(table, headers=headers))
+
+def _get_wf_call_failures(metadata, opts):
+    calls = []
+    if 'calls' in opts:
+        calls = opts['calls'].split(',')
+    else:
+        calls = metadata['calls'].keys()
+
+    fails = {}
+
+    for c in calls:
+        tasks = metadata['calls'][c]
+        failures = pipe(tasks, filter(lambda x: get('executionStatus', x) == 'Failed'),
+                               map(lambda x: { 'jobId'   : get('jobId', x),
+                                               'inputs'  : get('inputs', x),
+                                               'stderr'  : get('stderr', x),
+                                               'shard'   : get('shardIndex', x),
+                                               'err_msg' : get_in(['failures', 0, 'message'], x),
+                                               'jes'     : get('jes', x),
+                                               'runtime' : get('runtimeAttributes', x),
+                                               'rc'      : get('returnCode', x) }),
+                               list)
+        fails[c] = failures
+
+    return fails
 
 
 # -- Helper functions ----------------------------------------------------------

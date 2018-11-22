@@ -207,9 +207,11 @@ def bq():
               help='cromwell web server host')
 @click.option('--port', type=click.INT, default=8000,
               help='cromwell web server port')
-@click.option('--report', type=click.Choice(['summary', 'raw']),
+@click.option('--report', type=click.Choice(creport.workflow_report_types()),
               default='summary',
-              help='output report choice')
+              help='output report choices')
+@click.option('--opts', type=click.STRING, default=None,
+              help='specialized report options')
 @click.option('-v', '--verbose', count=True,
               help='verbosity level')
 def wf(metadata_path,
@@ -217,6 +219,7 @@ def wf(metadata_path,
        host,
        port,
        report,
+       opts,
        verbose):
     if verbose:
         _setup_logging_level(verbose)
@@ -233,7 +236,7 @@ def wf(metadata_path,
         port=port
     )
 
-    creport.workflow_report(report, metadata)
+    creport.workflow_report(report, metadata, opts)
 
 # -- Helper functions ----------------------------------------------------------
 def _identify_workflow_id(metadata_json):
