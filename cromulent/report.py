@@ -5,6 +5,9 @@ import json
 
 from clint.textui import puts, indent, colored
 from tabulate import tabulate
+from cytoolz.itertoolz import frequencies
+from cytoolz.curried import pipe, map, filter, get
+from cytoolz.dicttoolz import merge, valmap
 
 def standard_cost_report(wf_id, json_costs, display_nano_dollars):
     units = partial(dollar_units, display_nano_dollars)
@@ -83,6 +86,72 @@ def display_workflow_execution_status(wf_id, summary):
     for status in sorted(summary):
         if status not in ('Done', 'Failed'):
             print("    {} : {}".format(colored.yellow(status), summary[status]))
+
+def workflow_report(report, metadata):
+    dispatch = {
+        'summary' : wf_summary,
+    }
+
+    if report not in dispatch:
+        msg = "Workflow report '{}' is not implemented!".format(report)
+        logger.error(msg)
+        raise Exception(msg)
+
+    fn = dispatch[report]
+    fn(metadata)
+
+def wf_summary(metadata):
+    overall_wf_attributes = (
+        'id', 'status',
+        'workflowName', 'workflowRoot',
+        'submission', 'start'
+    )
+
+    (wf_id, wf_status, wf_name, wf_root, wf_submission, wf_start) = \
+            [metadata[x] for x in overall_wf_attributes]
+
+    wf_end = get('end', metadata, default="-")
+
+    puts('')
+    puts("ID         : {}".format(wf_id))
+    puts("Status     : {}".format(wf_status))
+    puts("Submit Time: {} (UTC)".format(wf_submission))
+    puts("Start  Time: {} (UTC)".format(wf_start))
+    puts("End    Time: {} (UTC)".format(wf_end))
+    puts('')
+
+    (calls, states, stats) = _get_wf_call_statuses(metadata)
+
+    table = []
+    for c in calls:
+        counts = [ stats[c][s] for s in states ]
+        row = [c]
+        row.extend(counts)
+        table.append(row)
+
+    headers = ['call']
+    headers.extend([ s for s in states ])
+    print(tabulate(table, headers=headers))
+
+def _get_wf_call_statuses(metadata):
+    calls = metadata['calls'].keys()
+    states = set([])
+    call_stats = {}
+
+    for c in calls:
+        tasks = metadata['calls'][c]
+        counts = pipe(tasks, map(get('executionStatus')),
+                             frequencies)
+        new_states = list(filter(lambda x: x not in states, counts.keys()))
+        if new_states:
+            for s in new_states: states.add(s)
+        call_stats[c] = counts
+
+    base_states = { s : 0 for s in states }
+
+    final_stats = valmap(lambda d: merge(base_states, d), call_stats)
+    return (calls, sorted(states), final_stats)
+
 
 # -- Helper functions ----------------------------------------------------------
 

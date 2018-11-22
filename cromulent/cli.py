@@ -196,6 +196,45 @@ def abort(workflow_id, host, port):
 def bq():
     sys.exit('[err] Subcommand not implemented yet!')
 
+@cli.command(short_help="generate a workflow report", name="wf")
+@click.option('--metadata', 'metadata_path', type=click.Path(exists=True), default=None,
+              help=('Path to an existing (not-raw) '
+                    'cromwell workflow metadata json file.'))
+@click.option('--workflow-id', type=click.STRING, default=None,
+              help=('A cromwell workflow-id to fetch metadata from '
+                    'the cromwell server'))
+@click.option('--host', type=click.STRING, default='localhost',
+              help='cromwell web server host')
+@click.option('--port', type=click.INT, default=8000,
+              help='cromwell web server port')
+@click.option('--report', type=click.Choice(['summary', 'raw']),
+              default='summary',
+              help='output report choice')
+@click.option('-v', '--verbose', count=True,
+              help='verbosity level')
+def wf(metadata_path,
+       workflow_id,
+       host,
+       port,
+       report,
+       verbose):
+    if verbose:
+        _setup_logging_level(verbose)
+
+    # otherwise prepare to cost calcuate and then report
+    if (metadata_path is None) and (workflow_id is None):
+        sys.exit(("[err] Please specify either a "
+                  "'--metadata' or '--workflow-id' option!"))
+
+    metadata = _get_metadata_json(
+        metadata_path=metadata_path,
+        workflow_id=workflow_id,
+        host=host,
+        port=port
+    )
+
+    creport.workflow_report(report, metadata)
+
 # -- Helper functions ----------------------------------------------------------
 def _identify_workflow_id(metadata_json):
     wf_id = None
@@ -220,6 +259,42 @@ def _enable_third_party_module_logs(level):
     # re-enable the loggers from the other third-party modules
     for name in logging.Logger.manager.loggerDict.keys():
         logging.getLogger(name).setLevel(level)
+
+def _get_metadata_json(metadata_path=None, workflow_id=None,
+                       host='localhost', port=8000):
+    metadata = None
+    if metadata_path:
+        msg = "Loading the workflow metadata from : {}".format(metadata_path)
+        logging.info(msg)
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+    else:
+        logging.info("Fetching metadata from cromwell")
+        server = _get_cromwell_server(host, port)
+        metadata = server.get_workflow_metadata(workflow_id)
+        logging.info("Fetched metadata from cromwell")
+
+    if metadata is None:
+        msg = "Could not derive workflow metadata"
+        logger.error(msg)
+        raise Exception(msg)
+
+    return metadata
+
+def _get_cromwell_server(host, port):
+    # setup the server object
+    # decorate the cromwell.Server class function
+    cromwell.Server.get_workflow_metadata = \
+        utils.memoize(cromwell.Server.get_workflow_metadata)
+    server = cromwell.Server(host, port)
+
+    logging.info("Checking if we have access to the cromwell server")
+    if not server.is_accessible():
+        msg = "Could not access the cromwell server!  Please ensure it is up!"
+        logging.error(msg)
+        raise Exception(msg)
+
+    return server
 
 def estimate_workflow_cost(metadata_path=None,
                            workflow_id=None,

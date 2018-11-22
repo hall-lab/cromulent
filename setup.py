@@ -27,7 +27,9 @@ setup(
         'google-auth==1.5.1',
         'python-dateutil==2.7.3',
         'requests==2.19.1',
-        'tabulate==0.8.2'
+        'tabulate==0.8.2',
+        'cytoolz==0.9.0.1',
+        'toolz==0.9.0'
     ],
     entry_points='''
         [console_scripts]
