@@ -67,7 +67,7 @@ Each subcommand will have it own set of options.  Try `cromulent <subcommand> --
 
 # Cromwell Workflow Reports
 
-The `cromulent wf` subcommand contains various report types for actively running and completed cromulent workflows.
+The `cromulent wf` subcommand contains various report types for actively running and completed cromwell workflows.
 
 The `cromulent wf` subcommand takes an `--opts` parameter that is specialized for a given `--report` option.  The `--opts` parameter must be in the following key/value command separated format:
 
