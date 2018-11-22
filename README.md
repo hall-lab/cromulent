@@ -65,9 +65,9 @@ Try typing `cromulent --help` on the command line and see what options are avail
 
 Each subcommand will have it own set of options.  Try `cromulent <subcommand> --help` for more details on each subcommand.
 
-## Workflow Reports
+# Cromwell Workflow Reports
 
-The `cromwell wf` subcommand contains various report types.
+The `cromulent wf` subcommand contains various report types for actively running and completed cromulent workflows.
 
 The `cromulent wf` subcommand takes an `--opts` parameter that is specialized for a given `--report` option.  The `--opts` parameter must be in the following key/value command separated format:
 
@@ -75,15 +75,16 @@ The `cromulent wf` subcommand takes an `--opts` parameter that is specialized fo
 
 The `opts` parameter can be used on certain report types.  See the documentation and examples below.
 
-### Summary Report
+## Summary Report
 
-This is a report to get an overall status of where things are with a given workflow.  _For large cromwell workflows it is probably convenient to cache the workflow metadata via the `cromulent metadata` command._
+This is a report to get an overall status of where things are with a given workflow.  _For large cromwell workflows it is probably convenient to cache the workflow metadata to a file via the `cromulent metadata` command._
 
 ### Command
 
     $ cromulent wf --metadata 45a3953a-052e-4aca-a3f1-51d313e01d99.json --report=summary
 
 or
+
     $ cromulent wf --workflow-id 45a3953a-052e-4aca-a3f1-51d313e01d99 --report=summary
 
 ### Example Output
@@ -190,9 +191,9 @@ Detailed failure report output:
         --- Error Message: --- 
         ...
 
-#### Specialized Options
+### Specialized Options
 
-These are options that be used on the `--opts` option parameter.
+These are the options that be used on the `--opts` option parameter for the `failures` report.
 
 * `detail=true`
     
