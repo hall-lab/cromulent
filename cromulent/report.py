@@ -230,11 +230,16 @@ def _get_wf_call_failures(metadata, opts):
     else:
         calls = metadata['calls'].keys()
 
+    jobids = None
+    if 'jobids' in opts:
+        jobids = set(opts['jobids'].split(','))
+
     fails = {}
 
     for c in calls:
         tasks = metadata['calls'][c]
         failures = pipe(tasks, filter(lambda x: get('executionStatus', x) == 'Failed'),
+                               filter(lambda x: _valid_job_id(jobids, get('jobId', x))),
                                map(lambda x: { 'jobId'   : get('jobId', x),
                                                'inputs'  : get('inputs', x),
                                                'stderr'  : get('stderr', x),
@@ -248,6 +253,15 @@ def _get_wf_call_failures(metadata, opts):
 
     return fails
 
+def _valid_job_id(valid_jobid_text_set, full_jobid_name):
+    if valid_jobid_text_set is None:
+        return True
+
+    for jobid_text in valid_jobid_text_set:
+        if jobid_text in full_jobid_name:
+            return True
+
+    return False
 
 # -- Helper functions ----------------------------------------------------------
 

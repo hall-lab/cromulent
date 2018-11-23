@@ -110,9 +110,10 @@ or
 
 ### Command
 
+    $ cromulent wf --report=failures --metadata=45a3953a-052e-4aca-a3f1-51d313e01d99.json
     $ cromulent wf --report=failures --metadata=45a3953a-052e-4aca-a3f1-51d313e01d99.json --opts='detail=true'
     $ cromulent wf --report=failures --metadata=45a3953a-052e-4aca-a3f1-51d313e01d99.json --opts='detail=true;calls=JointGenotyping.ImportGVCFs'
-    $ cromulent wf --report=failures --metadata=45a3953a-052e-4aca-a3f1-51d313e01d99.json
+    $ cromulent wf --report=failures --metadata=45a3953a-052e-4aca-a3f1-51d313e01d99.json --opts='detail=true;calls=JointGenotyping.ImportGVCFs;jobids=15664940324265826670,8797592820173599617'
 
 ### Example Output
 
@@ -197,13 +198,15 @@ These are the options that be used on the `--opts` option parameter for the `fai
 
 * `detail=true`
     
-    This will turn on the detailed failure report format.  It will contain error message, input, output and execution details for a given job.
+    This will turn on the detailed failure report format.  It will contain error message, input, output and execution details for a given job.  By default, this is turned off, and only the basic report is displayed.
 
-* `calls=wf.call_name`
+* `calls=<wf.call_name1>,<wf.call_name2>,...`
 
-    For example `calls=JointGenotyping.ImportGVCFs` will only produce the detail report for the tasks involved in the `JointGenotyping.ImportGVCFs` call of the corresponding workflow WDL file.
+    Report on only selected calls.  The selected calls are delimited by a `,`.  For example, `calls=JointGenotyping.ImportGVCFs` will only produce the failures report for just the `JointGenotyping.ImportGVCFs` task call of the corresponding workflow WDL file.
 
-The following
+* `jobids=<id-text>,<id-text>,...`
+
+    Report on only selected google genomics job IDs.  The job IDs are delimited by a `,`.  For example `jobids=15664940324265826670,8797592820173599617` will only produce the detail report for the job IDs containing the text `15664940324265826670` or `8797592820173599617`.
 
 **NOTE:** _This sofware is currently in alpha stage development, and is continously changing.  Newer subcommands and features are currently in development._
 
