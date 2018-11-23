@@ -129,6 +129,7 @@ def wf_summary(metadata, opts):
     puts("Submit Time: {} (UTC)".format(wf_submission))
     puts("Start  Time: {} (UTC)".format(wf_start))
     puts("End    Time: {} (UTC)".format(wf_end))
+    puts("Root       : {}".format(wf_root))
     puts('')
 
     (calls, states, stats) = _get_wf_call_statuses(metadata)
