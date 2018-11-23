@@ -10,6 +10,7 @@ from tabulate import tabulate
 from cytoolz.itertoolz import frequencies, take
 from cytoolz.curried import pipe, map, filter, get
 from cytoolz.dicttoolz import merge, valmap, get_in
+from pygments import highlight, lexers, formatters
 
 def standard_cost_report(wf_id, json_costs, display_nano_dollars):
     units = partial(dollar_units, display_nano_dollars)
@@ -193,7 +194,12 @@ def _generate_detail_wf_failure_report(fails, opts):
                 puts()
                 with indent(2, quote=''):
                     inputs = json.dumps(f['inputs'], indent=4, sort_keys=True)
-                    puts(inputs)
+                    colored_inputs = highlight(
+                        unicode(inputs, 'UTF-8'),
+                        lexers.JsonLexer(),
+                        formatters.TerminalFormatter()
+                    )
+                    puts(colored_inputs)
                 puts()
                 puts(colored.green("--- stderr: ---"))
                 puts()
@@ -203,14 +209,24 @@ def _generate_detail_wf_failure_report(fails, opts):
                 puts(colored.green("--- jes: ---"))
                 puts()
                 with indent(2, quote=''):
-                    inputs = json.dumps(f['jes'], indent=4, sort_keys=True)
-                    puts(inputs)
+                    jes = json.dumps(f['jes'], indent=4, sort_keys=True)
+                    colored_jes = highlight(
+                        unicode(jes, 'UTF-8'),
+                        lexers.JsonLexer(),
+                        formatters.TerminalFormatter()
+                    )
+                    puts(colored_jes)
                 puts()
                 puts(colored.green("--- runtime: ---"))
                 puts()
                 with indent(2, quote=''):
-                    inputs = json.dumps(f['runtime'], indent=4, sort_keys=True)
-                    puts(inputs)
+                    runtime = json.dumps(f['runtime'], indent=4, sort_keys=True)
+                    colored_runtime = highlight(
+                        unicode(runtime, 'UTF-8'),
+                        lexers.JsonLexer(),
+                        formatters.TerminalFormatter()
+                    )
+                    puts(colored_runtime)
             puts()
 
 def _generate_basic_wf_failure_report(fails, opts):

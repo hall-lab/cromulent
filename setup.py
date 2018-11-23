@@ -29,7 +29,8 @@ setup(
         'requests==2.19.1',
         'tabulate==0.8.2',
         'cytoolz==0.9.0.1',
-        'toolz==0.9.0'
+        'toolz==0.9.0',
+        'Pygments==2.2.0'
     ],
     entry_points='''
         [console_scripts]
