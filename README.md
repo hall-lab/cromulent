@@ -23,7 +23,7 @@ A [cromulent][0] (_[watch][3]_) assistant for [cromwell workflows][1] run on the
 
 ## Installation
 
-    pip install https://github.com/hall-lab/cromulent
+    pip install git+https://github.com/hall-lab/cromulent.git@master
 
 Additionally, you may need to authorize application default credentials via `gcloud` before running cromulent
 
