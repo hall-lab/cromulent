@@ -180,7 +180,7 @@ class CostEstimator(object):
                 if self.is_execution_subworkflow(e):
                     subworkflow_id = self.get_subworkflow_id(e)
                     logging.debug("    Entering Subworkflow: {} / {}".format(shard, subworkflow_id))
-                    subworkflow_summary_costs = self.calculate_cost(self.get_subworkflow_metadata(e))
+                    subworkflow_summary_costs = self.calculate_cost(self.get_subworkflow_metadata(e), tier_scheme=tier_scheme)
                     for task in subworkflow_summary_costs:
                         if task in summary:
                             summary[task]['cpu'] += subworkflow_summary_costs[task]['cpu']
