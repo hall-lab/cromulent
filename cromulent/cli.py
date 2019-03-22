@@ -68,6 +68,29 @@ def metadata(workflow_id, output, host, port):
     else:
         print(pretty_metadata)
 
+@cli.command(name='metadata-lite', short_help='retrieve abridge metadata for workflow-id (for large workflows)')
+@click.option('--output', type=click.Path(), default=None,
+              help='Path to dump the raw JSON metadata information to')
+@click.option('--host', type=click.STRING, default='localhost',
+              help='cromwell web server host')
+@click.option('--port', type=click.INT, default=8000,
+              help='cromwell web server port')
+@click.argument('workflow-id')
+def metadata_lite(workflow_id, output, host, port):
+    cromwell.Server.get_workflow_metadata = \
+        utils.memoize(cromwell.Server.get_workflow_metadata)
+    server = cromwell.Server(host, port)
+    if not server.is_accessible():
+        msg = "Could not access the cromwell server!  Please ensure it is up!"
+        raise Exception(msg)
+    metadata = server.get_workflow_metadata(workflow_id, lite=True)
+    pretty_metadata = json.dumps(metadata, indent=4, sort_keys=True)
+    if output:
+        with open(output, 'w') as f:
+            print(pretty_metadata, file=f)
+    else:
+        print(pretty_metadata)
+
 @cli.command(short_help="estimate ideal workflow cost")
 @click.option('--metadata', type=click.Path(exists=True), default=None,
               help=('Path to an existing (not-raw) '
