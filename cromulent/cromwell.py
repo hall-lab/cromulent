@@ -29,7 +29,23 @@ class Server(object):
 
         return True
 
+    def get_workflow_metadata_lite(self, workflow_id):
+        url_params = {
+            'expandSubWorkflows' : 'false',
+            'includeKey' : [ 'jobId', 'executionStatus', 'status', 'workflowName', 'workflowRoot', 'submission', 'start', ], 
+            # 'callRoot',
+            # 'stderr',
+            # 'failures',
+            # 'inputs',
+            # 'callCaching',
+            # 'outputs',
+        }
+        return self._get_workflow_metadata(workflow_id, url_params);
+
     def get_workflow_metadata(self, workflow_id, lite=False):
+        return self._get_workflow_metadata(workflow_id, { 'expandSubWorkflows' : 'false', } );
+
+    def _get_workflow_metadata(self, workflow_id, url_params):
         base_url = self._get_base_url()
         url = '/'.join([base_url,
                         'api',
@@ -37,32 +53,8 @@ class Server(object):
                         'v1',
                         workflow_id,
                         'metadata'])
-        url_params = {}
-        if lite:
-            logging.debug("Applying metadata lite mode request params")
-            params = {
-                'expandSubWorkflows' : 'false',
-                'includeKey' : 'jobId',
-                'includeKey' : 'callRoot',
-                'includeKey' : 'executionStatus',
-                'includeKey' : 'stderr',
-                'includeKey' : 'failures',
-                'includeKey' : 'inputs',
-                'includeKey' : 'callCaching',
-                'includeKey' : 'outputs',
-                'includeKey' : 'status',
-                'includeKey' : 'workflowName',
-                'includeKey' : 'workflowRoot',
-                'includeKey' : 'submission',
-                'includeKey' : 'start'
-            }
-        else:
-            params = {
-                'expandSubWorkflows' : 'false',
-            }
-
         logging.info("Fetching workflow metadata: {}".format(workflow_id))
-        r = requests.get(url, params=params)
+        r = requests.get(url, params=url_params)
         if r.status_code != 200:
             logging.error('Error retrieving workflow metadata: {}'.format(r.json()['message']))
             raise Exception(r.json()['message'])
