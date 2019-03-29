@@ -6,6 +6,7 @@ import click
 
 from cromulent.version import __version__
 
+import cromulent.app as app
 import cromulent.cromwell as cromwell
 import cromulent.gcloud as gcloud
 import cromulent.utils as utils
@@ -24,11 +25,18 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
 @click.group(context_settings=CONTEXT_SETTINGS)
 @click.version_option(version=__version__)
-def cli():
-    '''A collection of cromwell helpers.'''
+@click.pass_context
+def cli(ctx):
+    '''
+    A collection of cromwell helpers.
+
+    Set CROMULENT_CONFIG env variable the cromwell HOCON (JES) config file.
+    '''
     # to make this script/module behave nicely with unix pipes
     # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    ctx.obj = app.CromulentApp(os.environ.get('CROMULENT_CONFIG', None))
+
 
 # -- Subcommands ---------------------------------------------------------------
 @cli.command(name='sku-list',
