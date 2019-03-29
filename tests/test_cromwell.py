@@ -1,9 +1,9 @@
 import unittest
 
 import sys
-sys.path.insert(0, '../cromulent/')
 
-import cromwell
+from .context import cromulent
+import cromulent.cromwell as cromwell
 
 class CromwellServerTest(unittest.TestCase):
     server = None
