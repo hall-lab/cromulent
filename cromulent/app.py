@@ -2,16 +2,22 @@
 
 import pymysql.cursors
 from pyhocon import ConfigFactory
-import logging, os
+import logging, os, re
 
 class CromulentApp(object):
     def __init__(self, config_fname):
         '''
         The Cromulent App with Cromwell's HOCON Config
         '''
+        self.db = None
         if config_fname is not None:
             logging.getLogger('root').info('Using config at {0}'.format(config_fname))
-            self.config = ConfigFactory.parse_file(config_fname)
+            config_str = ''
+            with open(config_fname, 'r') as f:
+                for l in f.readlines():
+                    if re.search("^\s*include required", l): continue
+                    config_str += l
+            self.config = ConfigFactory.parse_string(config_str)
 
     # -- __init
 

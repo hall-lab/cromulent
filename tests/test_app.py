@@ -8,8 +8,7 @@ import cromulent.app as app
 class CromulentAppTest(unittest.TestCase):
 
     def test(self):
-        os.environ['CROMULENT_CONFIG'] = "tests/data/cromulent/app/jes.conf" # FIXME add to context
-        theapp = app.CromulentApp()
+        theapp = app.CromulentApp("tests/data/cromulent/app/jes.conf")
         self.assertIsNotNone(theapp)
 
 
