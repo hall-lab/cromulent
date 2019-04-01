@@ -30,7 +30,20 @@ def cli(ctx):
     '''
     A collection of cromwell helpers.
 
-    Set CROMULENT_CONFIG env variable the cromwell HOCON (JES) config file.
+    Config
+    Set the "CROMULENT_CONFIG" environment variable to the HOCON (JES)
+    config file used by cromwell.
+    
+    Database (mysql)
+    Database connection is read from the config file in the database section:
+    database {
+      db {
+        driver = "com.mysql.jdbc.Driver"
+        url = "jdbc:mysql://cromwell-mysql:3306/cromwell?rewriteBatchedStatements=true&useSSL=false"
+        user = "cromwell"
+        password = "words"
+      }
+    }
     '''
     # to make this script/module behave nicely with unix pipes
     # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
