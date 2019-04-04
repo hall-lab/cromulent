@@ -30,7 +30,9 @@ setup(
         'tabulate==0.8.2',
         'cytoolz==0.9.0.1',
         'toolz==0.9.0',
-        'PyMySQL==0.9.3'
+        'PyMySQL==0.9.3',
+        'pyparsing==2.3.1',
+        'pyhocon==0.3.51'
     ],
     entry_points='''
         [console_scripts]
