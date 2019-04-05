@@ -4,11 +4,14 @@ import pymysql.cursors
 from pyhocon import ConfigFactory
 import logging, os, re
 
+#import sqlite3
+#conn = sqlite3.connect('example.db')
 class CromulentApp(object):
-    def __init__(self, config_fname):
+    def __init__(self, config_fname=None):
         '''
         The Cromulent App with Cromwell's HOCON Config
         '''
+        self.config = None
         self.db = None
         if config_fname is not None:
             logging.getLogger('root').info('Using config at {0}'.format(config_fname))
