@@ -3,9 +3,8 @@
 import pymysql.cursors
 from pyhocon import ConfigFactory
 import logging, os, re
+import sqlite3
 
-#import sqlite3
-#conn = sqlite3.connect('example.db')
 class CromulentApp(object):
     def __init__(self, config_fname=None):
         '''
@@ -33,6 +32,15 @@ class CromulentApp(object):
     def connect(self):
         if self.db is not None: return self.db
 
+        assert self.config is not None, "No configuration found to connect to database!"
+
+        if self.config.get("database.db.file", None):
+            self._connect_sqlite()
+        else:
+            self._connect_mysql()
+        return self.db
+
+    def _connect_mysql(self):
         host = self.config.get("database.db.host", "localhost")
         port = self.config.get("database.db.port", "3306")
         url = self.config.get("database.db.url")
@@ -49,7 +57,9 @@ class CromulentApp(object):
             charset="utf8mb4",
             cursorclass=pymysql.cursors.DictCursor,
         )
-        return self.db
+
+    def _connect_sqlite(self):
+        self.db = sqlite3.connect( self.config.get("database.db.file") )
 
     # -- connect
 
