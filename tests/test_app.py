@@ -36,10 +36,9 @@ class CromulentAppTest(unittest.TestCase):
 
     def test_connect_fail(self):
         theapp = app.CromulentApp()
-        with self.assertRaises(AssertionError) as context:
+        with self.assertRaises(Exception) as context:
             theapp.connect()
-            self.assertTrue("No configuration found to connect to the daabase" in context.exception)
-
+            self.assertTrue("No configuration found to connect to the database" in context.exception)
 
 # -- CromulentAppTest
 

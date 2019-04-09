@@ -32,7 +32,8 @@ class CromulentApp(object):
     def connect(self):
         if self.db is not None: return self.db
 
-        assert self.config is not None, "No configuration found to connect to database!"
+        if self.config is None:
+            raise Exception("No configuration found to connect to database!")
 
         if self.config.get("database.db.file", None):
             self._connect_sqlite()
