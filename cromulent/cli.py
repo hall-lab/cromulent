@@ -286,12 +286,10 @@ def wf(metadata_path,
 ## SQL ##
 @cli.command(name='sql',
              short_help="run an SQL statement")
-@click.option('--sql-file', type=click.Path(), default=None,
-              help='Path to SQL file')
+@click.argument('sql-file', type=click.Path(), required=True)
 @click.pass_obj
 def sku_list(app, sql_file):
     db = app.connect()
-    assert db is not None, "Could not connect to the database!"
     sqlrun.run(db, sql_file)
 
 # -- Helper functions ----------------------------------------------------------
