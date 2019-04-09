@@ -9,6 +9,7 @@ from cromulent.version import __version__
 import cromulent.app as app
 import cromulent.cromwell as cromwell
 import cromulent.gcloud as gcloud
+import cromulent.sqlrun as sqlrun
 import cromulent.utils as utils
 import cromulent.report as creport
 
@@ -281,6 +282,17 @@ def wf(metadata_path,
     )
 
     creport.workflow_report(report, metadata, opts)
+
+## SQL ##
+@cli.command(name='sql',
+             short_help="run an SQL statement")
+@click.option('--sql-file', type=click.Path(), default=None,
+              help='Path to SQL file')
+@click.pass_obj
+def sku_list(app, sql_file):
+    db = app.connect()
+    assert db is not None, "Could not connect to the database!"
+    sqlrun.run(db, sql_file)
 
 # -- Helper functions ----------------------------------------------------------
 def _identify_workflow_id(metadata_json):
