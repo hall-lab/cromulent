@@ -11,7 +11,7 @@ class CromulentSqlrunTest(unittest.TestCase):
     def test_runsql(self):
         theapp = app.CromulentApp("tests/data/cromulent/app/sqlite.conf")
         db = theapp.connect()
-        sqlrun.run(db, "select.sql")
+        sqlrun.run(db, "tests/data/cromulent/sqlrun/select.sql")
 
 # -- CromulentSqlrunTest
 
