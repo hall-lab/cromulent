@@ -1,6 +1,8 @@
 
 # cromulent 
 
+[![Build Status](https://travis-ci.org/hall-lab/cromulent.svg?branch=master)](https://travis-ci.org/hall-lab/cromulent)
+
 A [cromulent][0] (_[watch][3]_) assistant for [cromwell workflows][1] run on the cloud (_currently only [Google Cloud Platform][2]_).
 
 ## Features
