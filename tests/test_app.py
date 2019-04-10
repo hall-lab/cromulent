@@ -20,9 +20,9 @@ class CromulentAppTest(unittest.TestCase):
         self.assertIsNone(theapp.db)
 
     def test_init_fails(self):
-        with self.assertRaises(IOError) as context:
+        with self.assertRaises(IOError) as cm:
             app.CromulentApp("/jes.conf")
-            self.assertTrue("No such file or directory" in context.exception)
+        self.assertTrue("No such file or directory" in cm.exception)
 
     def test_connect(self):
         theapp = app.CromulentApp("tests/data/cromulent/app/sqlite.conf")
@@ -36,9 +36,9 @@ class CromulentAppTest(unittest.TestCase):
 
     def test_connect_fail(self):
         theapp = app.CromulentApp()
-        with self.assertRaises(Exception) as context:
+        with self.assertRaises(Exception) as cm:
             theapp.connect()
-            self.assertTrue("No configuration found to connect to the database" in context.exception)
+        self.assertTrue("No configuration found to connect to database!" in cm.exception)
 
 # -- CromulentAppTest
 
