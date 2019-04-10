@@ -250,7 +250,7 @@ These are the options that be used on the `--opts` option parameter for the `fai
 
     Report on only selected google genomics job IDs.  The job IDs are delimited by a `,`.  For example `jobids=15664940324265826670,8797592820173599617` will only produce the detail report for the job IDs containing the text `15664940324265826670` or `8797592820173599617`.
 
-**NOTE:** _This sofware is currently in alpha stage development, and is continously changing.  Newer subcommands and features are currently in development._
+**NOTE:** _This sofware is currently in alpha stage development, and is continously changing.  Newer subcommands and features are currently in development. Existing subcommands may be modified, moved, or removed entirely._
 
 [0]: https://en.oxforddictionaries.com/definition/cromulent
 [1]: https://github.com/broadinstitute/cromwell
