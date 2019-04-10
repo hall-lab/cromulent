@@ -13,8 +13,6 @@ A [cromulent][0] (_[watch][3]_) assistant for [cromwell workflows][1] run on the
 * Easily retrieve current Google Compute Engine &amp; Persistent Disk Costs via the [Google Cloud Billing API][6]
 * Easily retrieve workflow metadata from the cromwell server
 
-
-
 ## Requirements
 
 * python 2.7
@@ -44,22 +42,29 @@ The main interface is the `cromulent` terminal command.  It has a git-like sub-c
 
 Try typing `cromulent --help` on the command line and see what options are available.
 
+    $ cromulent --help
     Usage: cromulent [OPTIONS] COMMAND [ARGS]...
-    
+
       A collection of cromwell helpers.
-    
+
+      Configuration Set the "CROMULENT_CONFIG" environment variable to the HOCON
+      (JES) config file used by cromwell. Please see README for more details.
+
     Options:
       --version   Show the version and exit.
       -h, --help  Show this message and exit.
-    
+
     Commands:
       abort             abort workflow
       bq                Inspect billing via BigQuery
       estimate          estimate ideal workflow cost
       execution-status  get workflow execution status
       metadata          retrieve metadata for workflow-id
+      metadata-lite     retrieve abridge metadata for workflow-id (for large
+                        workflows)
       outputs           metadata on inputs, outputs and status
       sku-list          retrieve sku pricing info from the Google Cloud API
+      sql               directly query the cromwell database
       status            get workflow status
       wf                generate a workflow report
 
