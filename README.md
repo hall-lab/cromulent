@@ -65,6 +65,43 @@ Try typing `cromulent --help` on the command line and see what options are avail
 
 Each subcommand will have it own set of options.  Try `cromulent <subcommand> --help` for more details on each subcommand.
 
+## Configuration File
+
+Some cromulent subcommands require a configuration file to run. For ease of use, cromulent uses the jes.conf file used by cromwell. This  file is in the [HOCON](https://github.com/chimpler/pyhocon) format, which is similar to [JSON](https://www.json.org/). Set the environment variable `CROMULENT_CONFIG` to the file you would like to use. The typical use of the config file is to ascertain the location and connection parameters for the cromwell database. See the examples below for details of these parameters.
+
+#### Cromwell's MYSQL Example
+_in cromwell's jes.conf_
+
+    database {
+      db {
+        url = "jdbc:mysql://cromwell-mysql:3306/cromwell?rewriteBatchedStatements=true&useSSL=false"\n
+        user = "cromwell"
+        password = "words"
+      }
+    }
+
+#### Local MYSQL Example
+_use your own HOCON formatted file_
+
+    database {
+      db {
+        host = localhost
+        port = 3306 
+        user = "root"
+        password = "words"
+      }
+    }
+
+
+#### SQLite Example
+_use your own HOCON formatted file_
+
+    database {
+      db {
+        file = "/somewhere/db.sqlite"
+      }
+    }
+
 # Cromwell Workflow Reports
 
 The `cromulent wf` subcommand contains various report types for actively running and completed cromwell workflows.
