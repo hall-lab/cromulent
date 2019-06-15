@@ -242,13 +242,13 @@ def _get_wf_call_failures(metadata, opts):
         failures = pipe(tasks, filter(lambda x: get('executionStatus', x) == 'Failed'),
                                filter(lambda x: _valid_job_id(jobids, get('jobId', x))),
                                map(lambda x: { 'jobId'   : get('jobId', x),
-                                               'inputs'  : get('inputs', x),
+#                                               'inputs'  : get('inputs', x),
                                                'stderr'  : get('stderr', x),
                                                'shard'   : get('shardIndex', x),
-                                               'err_msg' : get_in(['failures', 0, 'message'], x),
-                                               'jes'     : get('jes', x),
-                                               'runtime' : get('runtimeAttributes', x),
-                                               'rc'      : get('returnCode', x) }),
+                                               'err_msg' : get_in(['failures', 0, 'message'], x, 'NA'),
+#                                               'jes'     : get('jes', x),
+#                                               'runtime' : get('runtimeAttributes', x),
+                                               'rc'      : get('returnCode', x, 'NA') ,}),
                                list)
         fails[c] = failures
 

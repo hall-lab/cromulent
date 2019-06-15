@@ -32,7 +32,7 @@ class Server(object):
     def get_workflow_metadata_lite(self, workflow_id):
         url_params = {
             'expandSubWorkflows' : 'false',
-            'includeKey' : [ 'jobId', 'executionStatus', 'status', 'workflowName', 'workflowRoot', 'submission', 'start', ], 
+            'includeKey' : [ 'jobId', 'executionStatus', 'status', 'workflowName', 'workflowRoot', 'submission', 'start'],
             # 'callRoot',
             # 'stderr',
             # 'failures',
