@@ -320,7 +320,7 @@ class GoogleServices(object):
 
     def _get_billing_service(self, service_name):
         response = self.billing.services().list().execute()
-        compute_service = filter(lambda(x): x['displayName'] == service_name, response['services'])
+        compute_service = filter(lambda x: x['displayName'] == service_name, response['services'])
         if not compute_service:
             raise("Didn't find '{}' in billing API service list".format(service_name))
         return compute_service[0]

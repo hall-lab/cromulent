@@ -3,7 +3,7 @@ from __future__ import division
 from pprint import pprint
 import json, logging, math, functools
 
-from gcloud import GenomicsOperation
+from cromulent.gcloud import GenomicsOperation
 
 import requests
 
