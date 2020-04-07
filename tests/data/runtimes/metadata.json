@@ -1,0 +1,42 @@
+{
+    "calls": {
+        "JointGenotyping.CheckSamplesUnique": [
+            {
+                "attempt": 1,
+                "end": "2020-03-16T17:05:59.604Z",
+                "executionStatus": "Done",
+                "shardIndex": -1,
+                "start": "2020-03-16T17:05:51.366Z",
+                "stderr": "gs://wustl-gatk4-call-set-20200225/gatk4/cromwell/cromwell-executions/JointGenotyping/175a7f19-68dd-4055-93d5-a472dc02abdd/call-CheckSamplesUnique/stderr"
+            }
+        ],
+        "JointGenotyping.CollectGVCFs": [
+            {
+                "attempt": 1,
+                "end": "2020-03-16T17:27:44.282Z",
+                "executionStatus": "Done",
+                "shardIndex": 14913,
+                "start": "2020-03-16T17:27:31.074Z",
+                "stderr": "gs://wustl-gatk4-call-set-20200225/gatk4/cromwell/cromwell-executions/JointGenotyping/175a7f19-68dd-4055-93d5-a472dc02abdd/call-CollectGVCFs/shard-14913/stderr"
+            },
+            {
+                "attempt": 2,
+                "end": "2020-03-21T03:46:57.594Z",
+                "executionStatus": "RetryableFailure",
+                "jobId": "projects/washu-genome-inh-dis-analysis/operations/4894199199968681626",
+                "shardIndex": 14913,
+                "start": "2020-03-20T20:16:18.390Z",
+                "stderr": "gs://wustl-gatk4-call-set-20200225/gatk4/cromwell/cromwell-executions/JointGenotyping/175a7f19-68dd-4055-93d5-a472dc02abdd/call-GenotypeGVCFs/shard-14913/attempt-2/stderr"
+            },
+            {
+                "attempt": 3,
+                "end": "2020-03-22T03:16:26.600Z",
+                "executionStatus": "Done",
+                "jobId": "projects/washu-genome-inh-dis-analysis/operations/15653595912918019956",
+                "shardIndex": 14913,
+                "start": "2020-03-21T03:47:01.846Z",
+                "stderr": "gs://wustl-gatk4-call-set-20200225/gatk4/cromwell/cromwell-executions/JointGenotyping/175a7f19-68dd-4055-93d5-a472dc02abdd/call-GenotypeGVCFs/shard-14913/attempt-3/stderr"
+            }
+        ]
+    }
+}
