@@ -1,0 +1,26 @@
+{
+  "error": {
+    "code": 14,
+    "message": "Execution failed: worker was terminated"
+  },
+  "metadata": {
+    "createTime": "2020-03-16T17:54:44.038727Z",
+    "endTime": "2020-03-17T14:51:34.653167339Z",
+    "pipeline": {
+      "resources": {
+        "virtualMachine": {
+          "disks": [
+            {
+              "name": "local-disk",
+              "sizeGb": 200,
+              "sourceImage": "",
+              "type": "pd-standard"
+            }
+          ],
+          "machineType": "custom-6-32768"
+        }
+      }
+    },
+    "startTime": "2020-03-17T12:14:03.113617823Z"
+  }
+}

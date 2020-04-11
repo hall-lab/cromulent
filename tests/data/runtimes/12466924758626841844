@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "createTime": "2020-03-17T15:22:33.999044Z",
+    "endTime": "2020-03-19T08:16:21.621527411Z",
+    "pipeline": {
+      "resources": {
+        "virtualMachine": {
+          "disks": [
+            {
+              "name": "local-disk",
+              "sizeGb": 200,
+              "sourceImage": "",
+              "type": "pd-standard"
+            }
+          ],
+          "machineType": "custom-6-32768"
+        }
+      }
+    },
+    "startTime": "2020-03-18T12:42:39.118458611Z"
+  }
+}
