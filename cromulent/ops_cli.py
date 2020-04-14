@@ -38,3 +38,6 @@ def ops_list_cmd(metadata_fn, names):
             if job_id:
                 sys.stdout.write("{}\n".format(job_id))
 ops_cli.add_command(ops_list_cmd, name="list")
+
+from cromulent.ops_tasks import ops_tasks_cmd
+ops_cli.add_command(ops_tasks_cmd, name="tasks")
