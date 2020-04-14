@@ -42,6 +42,10 @@ def cli(ctx):
 
 
 # -- Subcommands ---------------------------------------------------------------
+
+from cromulent.ops_cli import ops_cli
+cli.add_command(ops_cli, name="ops")
+
 @cli.command(name='sku-list',
              short_help="retrieve sku pricing info from the Google Cloud API")
 @click.option('--output', type=click.Path(), default=None,
