@@ -39,7 +39,10 @@ class OpsCliTest(unittest.TestCase):
         except:
             print(result.output)
             raise
-        expected_output = "\n".join(self.job_ids + [""])
+        expected_output = """projects/washu-genome-inh-dis-analysis/operations/16837616465221457742 Failed
+projects/washu-genome-inh-dis-analysis/operations/1823025369343969712 RetryableFailure
+projects/washu-genome-inh-dis-analysis/operations/12466924758626841844 Done
+"""
         self.assertEqual(result.output, expected_output)
 
         result = runner.invoke(ops_list_cmd, [self.metadata_fn, "--names", "JointGenotyping.CheckSamplesUnique"])

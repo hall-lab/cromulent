@@ -39,10 +39,12 @@ def ops_list_cmd(metadata_fn, names):
         if names and task_name not in names:
             continue
         for task in metadata["calls"][task_name]:
+            status = task.get("executionStatus", None) # can then filter on status
             job_id = task.get("jobId", None)
             if job_id:
-                sys.stdout.write("{}\n".format(job_id))
+                sys.stdout.write("{} {}\n".format(job_id, status))
 ops_cli.add_command(ops_list_cmd, name="list")
 
+#[tasks]
 from cromulent.ops_tasks import ops_tasks_cmd
 ops_cli.add_command(ops_tasks_cmd, name="tasks")

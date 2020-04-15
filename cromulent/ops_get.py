@@ -15,7 +15,8 @@ def ops_get_cmd(ops_fn, ops_dn):
     ops_ids = collections.deque()
     with open(ops_fn, "r") as f:
         total += 1
-        for ops_id in f:
+        for line in f:
+            ops_id = line.split(" ")[0]
             ops_id = ops_id.rstrip()
             ops_fn = os.path.join(ops_dn, os.path.basename(ops_id))
             if not os.path.exists(ops_fn):
