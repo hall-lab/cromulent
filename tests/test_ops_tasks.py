@@ -27,7 +27,8 @@ class OpsTasksTest(unittest.TestCase):
         expected_output = """TASK_NAME                             SHARDS    ATTEMPTS
 ----------------------------------  --------  ----------
 JointGenotyping.CheckSamplesUnique         1           1
-JointGenotyping.CollectGVCFs               3           4"""
+JointGenotyping.CollectGVCFs               3           4
+"""
         self.assertEqual(result.output, expected_output)
 
 # -- OpsTasksTest

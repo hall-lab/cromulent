@@ -19,4 +19,4 @@ def ops_tasks_cmd(metadata_fn):
         for task in metadata["calls"][task_name]:
             shards.add(task.get("shardIndex", -1))
         rows.append( map(str, [task_name, len(shards), attempts]) )
-    sys.stdout.write( tabulate.tabulate(rows, ["TASK_NAME", "SHARDS", "ATTEMPTS"]) )
+    sys.stdout.write( tabulate.tabulate(rows, ["TASK_NAME", "SHARDS", "ATTEMPTS"]) + "\n")
