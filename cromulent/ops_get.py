@@ -14,8 +14,8 @@ def ops_get_cmd(ops_fn, ops_dn):
     total = 0
     ops_ids = collections.deque()
     with open(ops_fn, "r") as f:
-        total += 1
         for line in f:
+            total += 1
             ops_id = line.split(" ")[0]
             ops_id = ops_id.rstrip()
             ops_fn = os.path.join(ops_dn, os.path.basename(ops_id))
