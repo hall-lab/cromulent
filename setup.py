@@ -21,7 +21,7 @@ setup(
     license=license,
     url='https://github.com/ernfrid/cromwell_cost',
     install_requires=[
-        'click==6.7',
+        'click>=7',
         'clint==0.5.1',
         'google-api-python-client==1.7.3',
         'google-auth==1.5.1',
