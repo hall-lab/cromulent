@@ -9,6 +9,11 @@ def ops_cli():
     """
     pass
 
+#[get]
+from cromulent.ops_get import ops_get_cmd
+ops_cli.add_command(ops_get_cmd, name="get")
+
+#[list]
 @click.command(short_help="grab genomics job ids from a workflow")
 @click.argument("metadata_fn", type=click.STRING)
 @click.option("--names", type=click.STRING, default="", help="Only get ops from these tasks. Give as comma separated list.")
