@@ -26,7 +26,7 @@ setup(
         'google-api-python-client==1.7.3',
         'google-auth==1.5.1',
         'python-dateutil==2.7.3',
-        'requests==2.20.0',
+        'requests==2.31.0',
         'tabulate==0.8.2',
         'cytoolz==0.9.0.1',
         'toolz==0.9.0',
